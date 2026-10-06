@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'welcome_screen.dart';
+import 'my_garden_screen.dart';
 import 'account_information_screen.dart';
 import 'settings_screen.dart';
 import 'welcome_screen.dart';
@@ -537,11 +538,21 @@ class _AccountScreenState extends State<AccountScreen> {
                         selected: false,
                         scaleX: scaleX,
                       ),
-                      _navItem(
-                        icon: Icons.eco_outlined,
-                        text: 'حديقتي',
-                        selected: false,
-                        scaleX: scaleX,
+                                            GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MyGardenScreen(),
+                            ),
+                          );
+                        },
+                        child: _navItem(
+                          icon: Icons.eco_outlined,
+                          text: 'حديقتي',
+                          selected: false,
+                          scaleX: scaleX,
+                        ),
                       ),
                       _navItem(
                         icon:
