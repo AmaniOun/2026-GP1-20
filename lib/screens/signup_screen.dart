@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'login_screen.dart';
-import 'account_screen.dart';
+import 'main_navigation_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -88,15 +88,21 @@ class _SignupScreenState extends State<SignupScreen> {
 
     // ==========================================
     // مؤقتًا:
-    // ننقل الاسم والإيميل إلى صفحة حسابي
-    // لاحقًا سنربطه بـ Authentication + Database
+    // ننقل الاسم والإيميل إلى MainNavigationScreen.
+    //
+    // initialIndex = 4
+    // يعني فتح صفحة "حسابي" بعد إنشاء الحساب.
+    //
+    // لاحقًا سيتم ربط إنشاء الحساب
+    // بـ Authentication + Database.
     // ==========================================
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (context) => AccountScreen(
+        builder: (context) => MainNavigationScreen(
           name: name,
           email: email,
+          initialIndex: 4,
         ),
       ),
       (route) => false,
@@ -164,15 +170,12 @@ class _SignupScreenState extends State<SignupScreen> {
                         // ==================================
                         Align(
                           alignment: Alignment.centerLeft,
-
                           child: IconButton(
                             onPressed: () {
                               Navigator.pop(context);
                             },
-
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
-
                             icon: Icon(
                               Icons.arrow_back,
                               color: const Color(0xFF315B32),
@@ -203,7 +206,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           'إنشاء حساب جديد',
                           textDirection: TextDirection.rtl,
                           textAlign: TextAlign.center,
-
                           style: GoogleFonts.cairo(
                             color: const Color(0xFF234525),
                             fontSize: 26 * scaleX,
@@ -217,7 +219,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           'ابدأ رحلتك مع رُوى\nوكن جزءاً من مجتمع محبي النباتات',
                           textDirection: TextDirection.rtl,
                           textAlign: TextAlign.center,
-
                           style: GoogleFonts.cairo(
                             color: const Color(0xFF7D8079),
                             fontSize: 13.5 * scaleX,
@@ -286,7 +287,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           obscureText: obscurePassword,
                           scaleX: scaleX,
                           scaleY: scaleY,
-
                           onEyePressed: () {
                             setState(() {
                               obscurePassword = !obscurePassword;
@@ -312,7 +312,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           obscureText: obscureConfirmPassword,
                           scaleX: scaleX,
                           scaleY: scaleY,
-
                           onEyePressed: () {
                             setState(() {
                               obscureConfirmPassword =
@@ -328,7 +327,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         // ==================================
                         SizedBox(
                           height: 52 * scaleY,
-
                           child: ElevatedButton(
                             onPressed: _createAccount,
 
@@ -385,13 +383,11 @@ class _SignupScreenState extends State<SignupScreen> {
 
                             child: Stack(
                               alignment: Alignment.center,
-
                               children: [
                                 Center(
                                   child: Text(
                                     'إنشاء الحساب',
                                     textDirection: TextDirection.rtl,
-
                                     style: GoogleFonts.cairo(
                                       fontSize: 17 * scaleX,
                                       fontWeight: FontWeight.w700,
@@ -401,7 +397,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                                 Align(
                                   alignment: Alignment.centerLeft,
-
                                   child: Icon(
                                     Icons.arrow_back,
                                     size: 23 * scaleX,
@@ -420,11 +415,9 @@ class _SignupScreenState extends State<SignupScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           textDirection: TextDirection.rtl,
-
                           children: [
                             Text(
                               'لديك حساب بالفعل؟ ',
-
                               style: GoogleFonts.cairo(
                                 color: const Color(0xFF666A64),
                                 fontSize: 12 * scaleX,
@@ -444,7 +437,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                               child: Text(
                                 'تسجيل الدخول',
-
                                 style: GoogleFonts.cairo(
                                   color: const Color(0xFF315B32),
                                   fontSize: 12 * scaleX,
@@ -479,7 +471,6 @@ class _SignupScreenState extends State<SignupScreen> {
       text,
       textDirection: TextDirection.rtl,
       textAlign: TextAlign.right,
-
       style: GoogleFonts.cairo(
         color: const Color(0xFF292D28),
         fontSize: 13 * scaleX,
@@ -501,7 +492,6 @@ class _SignupScreenState extends State<SignupScreen> {
   }) {
     return SizedBox(
       height: 52 * scaleY,
-
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
@@ -537,7 +527,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-
             borderSide: const BorderSide(
               color: Color(0xFFDCE4D8),
               width: 1.3,
@@ -546,7 +535,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-
             borderSide: const BorderSide(
               color: Color(0xFF315B32),
               width: 1.7,
@@ -570,7 +558,6 @@ class _SignupScreenState extends State<SignupScreen> {
   }) {
     return SizedBox(
       height: 52 * scaleY,
-
       child: TextField(
         controller: controller,
         obscureText: obscureText,
@@ -601,12 +588,10 @@ class _SignupScreenState extends State<SignupScreen> {
           // العين على اليسار
           prefixIcon: IconButton(
             onPressed: onEyePressed,
-
             icon: Icon(
               obscureText
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined,
-
               color: const Color(0xFF8A8D87),
               size: 23 * scaleX,
             ),
@@ -621,7 +606,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-
             borderSide: const BorderSide(
               color: Color(0xFFDCE4D8),
               width: 1.3,
@@ -630,7 +614,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-
             borderSide: const BorderSide(
               color: Color(0xFF315B32),
               width: 1.7,

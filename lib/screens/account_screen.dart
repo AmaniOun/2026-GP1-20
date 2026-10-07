@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'welcome_screen.dart';
-import 'my_garden_screen.dart';
 import 'account_information_screen.dart';
 import 'settings_screen.dart';
-import 'welcome_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   final String name;
@@ -133,11 +132,9 @@ class _AccountScreenState extends State<AccountScreen> {
                   Navigator.pop(dialogContext, false);
                 },
                 style: ButtonStyle(
-                  foregroundColor:
-                      const WidgetStatePropertyAll(
+                  foregroundColor: const WidgetStatePropertyAll(
                     Color(0xFF315B32),
                   ),
-
                   backgroundColor:
                       WidgetStateProperty.resolveWith<Color>(
                     (states) {
@@ -152,14 +149,12 @@ class _AccountScreenState extends State<AccountScreen> {
                       return const Color(0xFFFAF9F4);
                     },
                   ),
-
                   side: const WidgetStatePropertyAll(
                     BorderSide(
                       color: Color(0xFF315B32),
                       width: 1.2,
                     ),
                   ),
-
                   shape: WidgetStatePropertyAll(
                     RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -176,7 +171,6 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
             ),
 
-            // مسافة بين الزرين
             const SizedBox(width: 6),
 
             // ======================================
@@ -189,8 +183,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   Navigator.pop(dialogContext, true);
                 },
                 style: ButtonStyle(
-                  elevation:
-                      const WidgetStatePropertyAll(0),
+                  elevation: const WidgetStatePropertyAll(0),
 
                   backgroundColor:
                       WidgetStateProperty.resolveWith<Color>(
@@ -207,8 +200,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     },
                   ),
 
-                  foregroundColor:
-                      const WidgetStatePropertyAll(
+                  foregroundColor: const WidgetStatePropertyAll(
                     Colors.white,
                   ),
 
@@ -278,299 +270,214 @@ class _AccountScreenState extends State<AccountScreen> {
             final scaleX = width / 360;
             final scaleY = height / 800;
 
-            return Column(
-              children: [
-                // ==========================================
-                // محتوى الصفحة
-                // ==========================================
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
 
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 24 * scaleX,
+              padding: EdgeInsets.symmetric(
+                horizontal: 24 * scaleX,
+              ),
+
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(height: 38 * scaleY),
+
+                  // ==================================
+                  // عنوان الصفحة
+                  // ==================================
+                  Text(
+                    'حسابي',
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.right,
+                    style: GoogleFonts.cairo(
+                      color: const Color(0xFF234525),
+                      fontSize: 32 * scaleX,
+                      fontWeight: FontWeight.w700,
                     ),
+                  ),
 
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(height: 38 * scaleY),
+                  SizedBox(height: 6 * scaleY),
 
-                        // ==================================
-                        // عنوان الصفحة
-                        // ==================================
-                        Text(
-                          'حسابي',
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.right,
-                          style: GoogleFonts.cairo(
-                            color: const Color(0xFF234525),
-                            fontSize: 32 * scaleX,
-                            fontWeight: FontWeight.w700,
-                          ),
+                  Text(
+                    'إدارة حسابك وتخصيص تجربتك في رُوى',
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.right,
+                    style: GoogleFonts.cairo(
+                      color: const Color(0xFF7D8079),
+                      fontSize: 14 * scaleX,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+
+                  SizedBox(height: 30 * scaleY),
+
+                  // ==================================
+                  // صورة الحساب
+                  // ==================================
+                  Center(
+                    child: Container(
+                      width: 92 * scaleX,
+                      height: 92 * scaleX,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE8F0E4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.person_outline_rounded,
+                        color: const Color(0xFF6F8F64),
+                        size: 48 * scaleX,
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 14 * scaleY),
+
+                  // ==================================
+                  // اسم المستخدم
+                  // ==================================
+                  Text(
+                    currentName,
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.cairo(
+                      color: const Color(0xFF234525),
+                      fontSize: 23 * scaleX,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                  SizedBox(height: 3 * scaleY),
+
+                  // ==================================
+                  // البريد الإلكتروني
+                  // ==================================
+                  Text(
+                    currentEmail,
+                    textDirection: TextDirection.ltr,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.cairo(
+                      color: const Color(0xFF7D8079),
+                      fontSize: 14 * scaleX,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+
+                  SizedBox(height: 30 * scaleY),
+
+                  // ==================================
+                  // معلومات الحساب
+                  // ==================================
+                  _buildCard(
+                    scaleX: scaleX,
+                    scaleY: scaleY,
+                    icon: Icons.person_outline_rounded,
+                    title: 'معلومات الحساب',
+                    subtitle: 'عرض وتعديل بيانات حسابك',
+                    onTap: _openAccountInformation,
+                  ),
+
+                  SizedBox(height: 15 * scaleY),
+
+                  // ==================================
+                  // الإعدادات
+                  // ==================================
+                  _buildCard(
+                    scaleX: scaleX,
+                    scaleY: scaleY,
+                    icon: Icons.settings_outlined,
+                    title: 'الإعدادات',
+                    subtitle: 'تخصيص التطبيق والتفضيلات',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const SettingsScreen(),
                         ),
+                      );
+                    },
+                  ),
 
-                        SizedBox(height: 6 * scaleY),
+                  SizedBox(height: 26 * scaleY),
 
-                        Text(
-                          'إدارة حسابك وتخصيص تجربتك في رُوى',
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.right,
-                          style: GoogleFonts.cairo(
-                            color: const Color(0xFF7D8079),
-                            fontSize: 14 * scaleX,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
+                  const Divider(
+                    color: Color(0xFFDCE4D8),
+                    thickness: 1,
+                  ),
 
-                        SizedBox(height: 30 * scaleY),
+                  SizedBox(height: 20 * scaleY),
 
-                        // ==================================
-                        // صورة الحساب
-                        // ==================================
-                        Center(
-                          child: Container(
-                            width: 92 * scaleX,
-                            height: 92 * scaleX,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFE8F0E4),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.person_outline_rounded,
-                              color: const Color(0xFF6F8F64),
-                              size: 48 * scaleX,
-                            ),
-                          ),
-                        ),
+                  // ==================================
+                  // زر تسجيل الخروج
+                  // ==================================
+                  SizedBox(
+                    height: 52 * scaleY,
+                    child: ElevatedButton(
+                      onPressed: _logout,
 
-                        SizedBox(height: 14 * scaleY),
+                      style: ButtonStyle(
+                        elevation: const WidgetStatePropertyAll(0),
 
-                        // ==================================
-                        // اسم المستخدم
-                        // ==================================
-                        Text(
-                          currentName,
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.cairo(
-                            color: const Color(0xFF234525),
-                            fontSize: 23 * scaleX,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        backgroundColor:
+                            WidgetStateProperty.resolveWith<Color>(
+                          (states) {
+                            if (states.contains(
+                              WidgetState.pressed,
+                            )) {
+                              return const Color(0xFF234525);
+                            }
 
-                        SizedBox(height: 3 * scaleY),
+                            if (states.contains(
+                              WidgetState.hovered,
+                            )) {
+                              return const Color(0xFF3D6A3E);
+                            }
 
-                        // ==================================
-                        // البريد الإلكتروني
-                        // ==================================
-                        Text(
-                          currentEmail,
-                          textDirection: TextDirection.ltr,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.cairo(
-                            color: const Color(0xFF7D8079),
-                            fontSize: 14 * scaleX,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-
-                        SizedBox(height: 30 * scaleY),
-
-                        // ==================================
-                        // معلومات الحساب
-                        // ==================================
-                        _buildCard(
-                          scaleX: scaleX,
-                          scaleY: scaleY,
-                          icon: Icons.person_outline_rounded,
-                          title: 'معلومات الحساب',
-                          subtitle: 'عرض وتعديل بيانات حسابك',
-                          onTap: _openAccountInformation,
-                        ),
-
-                        SizedBox(height: 15 * scaleY),
-
-                        // ==================================
-                        // الإعدادات
-                        // ==================================
-                        _buildCard(
-                          scaleX: scaleX,
-                          scaleY: scaleY,
-                          icon: Icons.settings_outlined,
-                          title: 'الإعدادات',
-                          subtitle: 'تخصيص التطبيق والتفضيلات',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const SettingsScreen(),
-                              ),
-                            );
+                            return const Color(0xFF315B32);
                           },
                         ),
 
-                        SizedBox(height: 26 * scaleY),
-
-                        const Divider(
-                          color: Color(0xFFDCE4D8),
-                          thickness: 1,
+                        foregroundColor:
+                            const WidgetStatePropertyAll(
+                          Colors.white,
                         ),
 
-                        SizedBox(height: 20 * scaleY),
+                        overlayColor:
+                            WidgetStateProperty.resolveWith<Color?>(
+                          (states) {
+                            if (states.contains(
+                              WidgetState.pressed,
+                            )) {
+                              return Colors.white.withValues(
+                                alpha: 0.10,
+                              );
+                            }
 
-                        // ==================================
-                        // زر تسجيل الخروج
-                        // ==================================
-                        SizedBox(
-                          height: 52 * scaleY,
-                          child: ElevatedButton(
-                            onPressed: _logout,
+                            return null;
+                          },
+                        ),
 
-                            style: ButtonStyle(
-                              elevation:
-                                  const WidgetStatePropertyAll(
-                                0,
-                              ),
-
-                              backgroundColor:
-                                  WidgetStateProperty
-                                      .resolveWith<Color>(
-                                (states) {
-                                  if (states.contains(
-                                    WidgetState.pressed,
-                                  )) {
-                                    return const Color(
-                                      0xFF234525,
-                                    );
-                                  }
-
-                                  if (states.contains(
-                                    WidgetState.hovered,
-                                  )) {
-                                    return const Color(
-                                      0xFF3D6A3E,
-                                    );
-                                  }
-
-                                  return const Color(
-                                    0xFF315B32,
-                                  );
-                                },
-                              ),
-
-                              foregroundColor:
-                                  const WidgetStatePropertyAll(
-                                Colors.white,
-                              ),
-
-                              overlayColor:
-                                  WidgetStateProperty
-                                      .resolveWith<Color?>(
-                                (states) {
-                                  if (states.contains(
-                                    WidgetState.pressed,
-                                  )) {
-                                    return Colors.white.withValues(
-                                      alpha: 0.10,
-                                    );
-                                  }
-
-                                  return null;
-                                },
-                              ),
-
-                              shape: WidgetStatePropertyAll(
-                                RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(14),
-                                ),
-                              ),
-                            ),
-
-                            child: Text(
-                              'تسجيل الخروج',
-                              textDirection: TextDirection.rtl,
-                              style: GoogleFonts.cairo(
-                                fontSize: 17 * scaleX,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                        shape: WidgetStatePropertyAll(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
                         ),
+                      ),
 
-                        SizedBox(height: 28 * scaleY),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // ==========================================
-                // شريط التنقل السفلي
-                // ==========================================
-                Container(
-                  height: 72 * scaleY,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    border: Border(
-                      top: BorderSide(
-                        color: Color(0xFFDCE4D8),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceAround,
-                    children: [
-                      _navItem(
-                        icon: Icons.home_outlined,
-                        text: 'الرئيسية',
-                        selected: false,
-                        scaleX: scaleX,
-                      ),
-                      _navItem(
-                        icon: Icons.search_rounded,
-                        text: 'البحث',
-                        selected: false,
-                        scaleX: scaleX,
-                      ),
-                                            GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const MyGardenScreen(),
-                            ),
-                          );
-                        },
-                        child: _navItem(
-                          icon: Icons.eco_outlined,
-                          text: 'حديقتي',
-                          selected: false,
-                          scaleX: scaleX,
+                      child: Text(
+                        'تسجيل الخروج',
+                        textDirection: TextDirection.rtl,
+                        style: GoogleFonts.cairo(
+                          fontSize: 17 * scaleX,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      _navItem(
-                        icon:
-                            Icons.notifications_none_rounded,
-                        text: 'الإشعارات',
-                        selected: false,
-                        scaleX: scaleX,
-                      ),
-                      _navItem(
-                        icon: Icons.person_outline_rounded,
-                        text: 'حسابي',
-                        selected: true,
-                        scaleX: scaleX,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+
+                  SizedBox(height: 28 * scaleY),
+                ],
+              ),
             );
           },
         ),
@@ -633,8 +540,7 @@ class _AccountScreenState extends State<AccountScreen> {
               // النص
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       title,
@@ -671,47 +577,6 @@ class _AccountScreenState extends State<AccountScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  // ==========================================
-  // عناصر شريط التنقل السفلي
-  // ==========================================
-  Widget _navItem({
-    required IconData icon,
-    required String text,
-    required bool selected,
-    required double scaleX,
-  }) {
-    final color = selected
-        ? const Color(0xFF315B32)
-        : const Color(0xFF7D8079);
-
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 24 * scaleX,
-          ),
-
-          const SizedBox(height: 2),
-
-          Text(
-            text,
-            textDirection: TextDirection.rtl,
-            style: GoogleFonts.cairo(
-              color: color,
-              fontSize: 10 * scaleX,
-              fontWeight: selected
-                  ? FontWeight.w700
-                  : FontWeight.w400,
-            ),
-          ),
-        ],
       ),
     );
   }
