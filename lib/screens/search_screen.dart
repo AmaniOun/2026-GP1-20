@@ -3,14 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/plant.dart';
 import '../services/plant_service.dart';
-import '../services/knn_classifier.dart';
 
 // ==========================================
 // شاشة البحث عن النباتات
 //
-// - البحث بالاسم (عربي أو علمي) داخل قاعدة بيانات روى (90 نبتة)
-// - لو النبتة غير موجودة: نموذج لإدخال خصائصها، ويتوقع KNN
-//   فئة تحملها للمناخ (Highly / Moderately / Poorly Tolerant)
+// - عرض النباتات الموجودة في قاعدة روى (PBI 8)
+// - البحث بالاسم الكامل أو الجزئي، عربي أو علمي (PBI 9)
+// - فلترة بالخصائص: الماء، تحمل المناخ، العناية (PBI 22)
+// - رسائل: لا توجد نتائج / لا توجد نباتات تطابق الفلاتر
 // ==========================================
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -20,18 +20,44 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final searchController = TextEditingController();
-  final heightController = TextEditingController();
-  final spreadController = TextEditingController();
-  final minTempController = TextEditingController();
+  static const _green = Color(0xFF315B32);
+  static const _darkGreen = Color(0xFF234525);
+  static const _border = Color(0xFFDCE4D8);
+  static const _grey = Color(0xFF7D8079);
 
-  List<Plant> allPlants = [];
-  bool isLoading = true;
-  String query = '';
+  final _searchController = TextEditingController();
 
-  String? selectedWatering; // Low / Medium / High
-  String? selectedLight; // Shade / Partial Sun / Full Sun
-  String? predictedClass;
+  List<Plant> _allPlants = [];
+  bool _isLoading = true;
+  String? _error;
+  String _query = '';
+
+  // الفلاتر (null = بدون فلتر)
+  String? _water; // Low / Moderate / High
+  String? _tolerance; // High / Moderate / Low
+  String? _care; // Low / Moderate / High
+
+  bool get _hasFilters => _water != null || _tolerance != null || _care != null;
+
+  int get _filterCount =>
+      [_water, _tolerance, _care].where((e) => e != null).length;
+
+  // خيارات الفلاتر (القيمة في الداتاسيت: النص العربي)
+  static const _waterOptions = {
+    'Low': 'ري منخفض',
+    'Moderate': 'ري متوسط',
+    'High': 'ري مرتفع',
+  };
+  static const _toleranceOptions = {
+    'High': 'تحمل عالٍ',
+    'Moderate': 'تحمل متوسط',
+    'Low': 'تحمل ضعيف',
+  };
+  static const _careOptions = {
+    'Low': 'عناية قليلة',
+    'Moderate': 'عناية متوسطة',
+    'High': 'عناية عالية',
+  };
 
   @override
   void initState() {
@@ -41,99 +67,90 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
-    searchController.dispose();
-    heightController.dispose();
-    spreadController.dispose();
-    minTempController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadPlants() async {
-    final plants = await PlantService.instance.loadPlants();
-    if (!mounted) return;
+    try {
+      final plants = await PlantService.instance.loadPlants();
+      if (!mounted) return;
+      setState(() {
+        _allPlants = plants;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  // البحث بالاسم ثم تطبيق الفلاتر (المنطق داخل PlantService)
+  List<Plant> get _results {
+    final service = PlantService.instance;
+    final byName = service.search(_allPlants, _query);
+    return service.filter(
+      byName,
+      water: _water,
+      tolerance: _tolerance,
+      care: _care,
+    );
+  }
+
+  void _resetFilters() {
     setState(() {
-      allPlants = plants;
-      isLoading = false;
+      _water = null;
+      _tolerance = null;
+      _care = null;
     });
   }
 
-  List<Plant> get results {
-    final q = query.trim().toLowerCase();
-    if (q.isEmpty) return allPlants;
-    return allPlants.where((p) {
-      return p.arabicName.toLowerCase().contains(q) ||
-          p.scientificName.toLowerCase().contains(q);
-    }).toList();
-  }
-
-  String _classLabel(String englishClass) {
-    switch (englishClass) {
-      case 'Highly Tolerant':
-        return 'عالية التحمل';
-      case 'Moderately Tolerant':
-        return 'متوسطة التحمل';
-      case 'Poorly Tolerant':
-        return 'ضعيفة التحمل';
+  // ---------- نصوص عربية للقيم ----------
+  String _waterLabel(String v) {
+    switch (v) {
+      case 'Low':
+        return 'ري منخفض';
+      case 'Moderate':
+        return 'ري متوسط';
+      case 'High':
+        return 'ري مرتفع';
       default:
-        return englishClass;
+        return v;
     }
   }
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          textDirection: TextDirection.rtl,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.cairo(),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  String _careLabel(String v) {
+    switch (v) {
+      case 'Low':
+        return 'عناية قليلة';
+      case 'Moderate':
+        return 'عناية متوسطة';
+      case 'High':
+        return 'عناية عالية';
+      default:
+        return v;
+    }
   }
 
-  void _classify() {
-    if (selectedWatering == null || selectedLight == null) {
-      _showMessage('يرجى تحديد مستوى الري ومستوى الضوء');
-      return;
+  String _toleranceLabel(String? v) {
+    switch (v) {
+      case 'High':
+        return 'تحمل عالٍ';
+      case 'Moderate':
+        return 'تحمل متوسط';
+      case 'Low':
+        return 'تحمل ضعيف';
+      default:
+        return 'غير مصنّفة';
     }
-
-    final height = double.tryParse(heightController.text.trim());
-    final spread = double.tryParse(spreadController.text.trim());
-    final minTemp = double.tryParse(minTempController.text.trim());
-
-    if (height == null || spread == null || minTemp == null) {
-      _showMessage('يرجى إدخال قيم رقمية صحيحة للطول والانتشار وأقل حرارة');
-      return;
-    }
-    if (height <= 0 || spread <= 0) {
-      _showMessage('يجب أن يكون الطول والانتشار أكبر من صفر');
-      return;
-    }
-    if (minTemp < -50 || minTemp > 50) {
-      _showMessage('قيمة أقل حرارة يجب أن تكون بين -50 و 50 درجة مئوية');
-      return;
-    }
-
-    final classifier = KnnClassifier(allPlants);
-    final result = classifier.classify(
-      NewPlantFeatures(
-        arabicName: query.trim(),
-        scientificName: '',
-        wateringRequirement: selectedWatering!,
-        lightRequirement: selectedLight!,
-        matureHeight: height,
-        matureSpread: spread,
-        minTempTolerance: minTemp,
-      ),
-      k: 5,
-    );
-
-    setState(() => predictedClass = result);
   }
 
+  // ==========================================
+  // البناء
+  // ==========================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,47 +160,46 @@ class _SearchScreenState extends State<SearchScreen> {
           builder: (context, constraints) {
             final scaleX = constraints.maxWidth / 360;
             final scaleY = constraints.maxHeight / 800;
+            final results = _results;
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scaleX),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(height: 38 * scaleY),
-                  Text(
-                    'البحث',
-                    textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.cairo(
-                      color: const Color(0xFF234525),
-                      fontSize: 28 * scaleX,
-                      fontWeight: FontWeight.w700,
-                    ),
+            Widget? message;
+            if (_isLoading) {
+              message = const Center(
+                child: CircularProgressIndicator(color: _green),
+              );
+            } else if (_error != null) {
+              message = _message('تعذر تحميل النباتات:\n$_error', scaleX);
+            } else if (_allPlants.isEmpty) {
+              message = _message('لا توجد نباتات متاحة حالياً', scaleX);
+            } else if (results.isEmpty) {
+              message = _message(
+                _hasFilters
+                    ? 'لا توجد نباتات تطابق الفلاتر المحددة'
+                    : 'لا توجد نتائج مطابقة',
+                scaleX,
+              );
+            }
+
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20 * scaleX),
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _header(scaleX, scaleY, results.length),
                   ),
-                  SizedBox(height: 6 * scaleY),
-                  Text(
-                    'ابحثي عن نبتة بالاسم العربي أو العلمي',
-                    textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.cairo(
-                      color: const Color(0xFF7D8079),
-                      fontSize: 14 * scaleX,
-                    ),
-                  ),
-                  SizedBox(height: 20 * scaleY),
-                  _searchField(scaleX, scaleY),
-                  SizedBox(height: 20 * scaleY),
-                  if (isLoading)
-                    const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF315B32),
-                      ),
+                  if (message != null)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: message!,
                     )
-                  else if (results.isEmpty)
-                    _notFoundSection(scaleX, scaleY)
                   else
-                    ...results.map((p) => _plantTile(p, scaleX)),
-                  SizedBox(height: 30 * scaleY),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => _plantTile(results[i], scaleX),
+                        childCount: results.length,
+                      ),
+                    ),
+                  SliverToBoxAdapter(child: SizedBox(height: 24 * scaleY)),
                 ],
               ),
             );
@@ -193,21 +209,173 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  Widget _header(double scaleX, double scaleY, int count) {
+    final showCount = !_isLoading && _error == null && _allPlants.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(height: 30 * scaleY),
+        Text(
+          'البحث',
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.right,
+          style: GoogleFonts.cairo(
+            color: _darkGreen,
+            fontSize: 28 * scaleX,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        SizedBox(height: 4 * scaleY),
+        Text(
+          'ابحثي عن نبتة بالاسم العربي أو العلمي',
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.right,
+          style: GoogleFonts.cairo(color: _grey, fontSize: 14 * scaleX),
+        ),
+        SizedBox(height: 16 * scaleY),
+        _searchField(scaleX, scaleY),
+        SizedBox(height: 16 * scaleY),
+
+        // زر تصفية النتائج (يفتح ورقة الفلاتر) + إعادة تعيين
+        Row(
+          textDirection: TextDirection.rtl,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            GestureDetector(
+              onTap: _openFilterSheet,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 14 * scaleX,
+                  vertical: 8 * scaleX,
+                ),
+                decoration: BoxDecoration(
+                  color: _hasFilters ? _green : Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: _hasFilters ? _green : _border,
+                    width: 1.3,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  textDirection: TextDirection.rtl,
+                  children: [
+                    Icon(
+                      Icons.tune_rounded,
+                      size: 18 * scaleX,
+                      color: _hasFilters ? Colors.white : _darkGreen,
+                    ),
+                    SizedBox(width: 6 * scaleX),
+                    Text(
+                      'تصفية النتائج',
+                      textDirection: TextDirection.rtl,
+                      style: GoogleFonts.cairo(
+                        color: _hasFilters ? Colors.white : _darkGreen,
+                        fontSize: 13 * scaleX,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (_hasFilters) ...[
+                      SizedBox(width: 6 * scaleX),
+                      Container(
+                        width: 20 * scaleX,
+                        height: 20 * scaleX,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$_filterCount',
+                          style: GoogleFonts.cairo(
+                            color: _green,
+                            fontSize: 11 * scaleX,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            if (_hasFilters)
+              GestureDetector(
+                onTap: _resetFilters,
+                child: Row(
+                  textDirection: TextDirection.rtl,
+                  children: [
+                    Icon(Icons.refresh_rounded, size: 18 * scaleX, color: _green),
+                    SizedBox(width: 4 * scaleX),
+                    Text(
+                      'إعادة تعيين',
+                      textDirection: TextDirection.rtl,
+                      style: GoogleFonts.cairo(
+                        color: _green,
+                        fontSize: 13 * scaleX,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+
+        // الفلاتر المفعّلة (تُمسح بعلامة ×)
+        if (_hasFilters) ...[
+          SizedBox(height: 10 * scaleY),
+          Directionality(
+            textDirection: TextDirection.rtl,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  if (_water != null)
+                    _activeChip(_waterOptions[_water]!,
+                        () => setState(() => _water = null), scaleX),
+                  if (_tolerance != null)
+                    _activeChip(_toleranceOptions[_tolerance]!,
+                        () => setState(() => _tolerance = null), scaleX),
+                  if (_care != null)
+                    _activeChip(_careOptions[_care]!,
+                        () => setState(() => _care = null), scaleX),
+                ],
+              ),
+            ),
+          ),
+        ],
+        SizedBox(height: 14 * scaleY),
+
+        // عداد النتائج
+        if (showCount)
+          Padding(
+            padding: EdgeInsets.only(bottom: 10 * scaleY),
+            child: Text(
+              '$count نتيجة',
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.right,
+              style: GoogleFonts.cairo(
+                color: _grey,
+                fontSize: 13 * scaleX,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _searchField(double scaleX, double scaleY) {
     return SizedBox(
       height: 52 * scaleY,
       child: TextField(
-        controller: searchController,
+        controller: _searchController,
         textDirection: TextDirection.rtl,
         textAlign: TextAlign.right,
-        onChanged: (value) => setState(() {
-          query = value;
-          predictedClass = null;
-        }),
-        style: GoogleFonts.cairo(
-          color: const Color(0xFF234525),
-          fontSize: 14 * scaleX,
-        ),
+        onChanged: (value) => setState(() => _query = value),
+        style: GoogleFonts.cairo(color: _darkGreen, fontSize: 14 * scaleX),
         decoration: InputDecoration(
           hintText: 'اسم النبتة...',
           hintTextDirection: TextDirection.rtl,
@@ -215,46 +383,330 @@ class _SearchScreenState extends State<SearchScreen> {
             color: const Color(0xFF8A8D87),
             fontSize: 13 * scaleX,
           ),
-          prefixIcon: const Icon(Icons.search, color: Color(0xFF315B32)),
+          prefixIcon: const Icon(Icons.search, color: _green),
           filled: true,
           fillColor: Colors.white,
           contentPadding: EdgeInsets.symmetric(horizontal: 16 * scaleX),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFFDCE4D8), width: 1.3),
+            borderSide: const BorderSide(color: _border, width: 1.3),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFF315B32), width: 1.7),
+            borderSide: const BorderSide(color: _green, width: 1.7),
           ),
         ),
       ),
     );
   }
 
+  // وسم الفلتر المفعّل مع علامة ×
+  Widget _activeChip(String label, VoidCallback onRemove, double scaleX) {
+    return Padding(
+      padding: EdgeInsets.only(left: 8 * scaleX),
+      child: GestureDetector(
+        onTap: onRemove,
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: 10 * scaleX,
+            vertical: 5 * scaleX,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8F0E4),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            textDirection: TextDirection.rtl,
+            children: [
+              Text(
+                label,
+                textDirection: TextDirection.rtl,
+                style: GoogleFonts.cairo(
+                  color: _darkGreen,
+                  fontSize: 11.5 * scaleX,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(width: 4 * scaleX),
+              Icon(Icons.close_rounded, size: 14 * scaleX, color: _green),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ورقة الفلاتر (تطلع من تحت)
+  void _openFilterSheet() {
+    String? w = _water;
+    String? t = _tolerance;
+    String? c = _care;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFFFAF9F4),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheet) {
+            final scaleX = MediaQuery.of(context).size.width / 360;
+
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    20 * scaleX,
+                    20 * scaleX,
+                    20 * scaleX,
+                    16 * scaleX,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'تصفية النتائج',
+                        style: GoogleFonts.cairo(
+                          color: _darkGreen,
+                          fontSize: 20 * scaleX,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 14 * scaleX),
+                      _sheetGroup(
+                        'احتياج الماء',
+                        _waterOptions,
+                        w,
+                        (v) => setSheet(() => w = v),
+                        scaleX,
+                      ),
+                      _sheetGroup(
+                        'تحمل المناخ',
+                        _toleranceOptions,
+                        t,
+                        (v) => setSheet(() => t = v),
+                        scaleX,
+                      ),
+                      _sheetGroup(
+                        'مستوى العناية',
+                        _careOptions,
+                        c,
+                        (v) => setSheet(() => c = v),
+                        scaleX,
+                      ),
+                      SizedBox(height: 6 * scaleX),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _water = w;
+                                  _tolerance = t;
+                                  _care = c;
+                                });
+                                Navigator.pop(sheetContext);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                backgroundColor: _green,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 14 * scaleX,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: Text(
+                                'تطبيق',
+                                style: GoogleFonts.cairo(
+                                  fontSize: 15 * scaleX,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 10 * scaleX),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => setSheet(() {
+                                w = null;
+                                t = null;
+                                c = null;
+                              }),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _green,
+                                side: const BorderSide(color: _border),
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 14 * scaleX,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: Text(
+                                'إعادة تعيين',
+                                style: GoogleFonts.cairo(
+                                  fontSize: 13 * scaleX,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // مجموعة خيارات داخل الورقة (اضغطي على المختار مرة ثانية لإلغائه)
+  Widget _sheetGroup(
+    String title,
+    Map<String, String> options,
+    String? selected,
+    ValueChanged<String?> onSelect,
+    double scaleX,
+  ) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 16 * scaleX),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.cairo(
+              color: const Color(0xFF292D28),
+              fontSize: 14 * scaleX,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 8 * scaleX),
+          Wrap(
+            spacing: 8 * scaleX,
+            runSpacing: 8 * scaleX,
+            children: options.entries.map((e) {
+              final isSelected = selected == e.key;
+              return GestureDetector(
+                onTap: () => onSelect(isSelected ? null : e.key),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16 * scaleX,
+                    vertical: 9 * scaleX,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _green : Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: isSelected ? _green : _border,
+                      width: 1.3,
+                    ),
+                  ),
+                  child: Text(
+                    e.value,
+                    style: GoogleFonts.cairo(
+                      color: isSelected ? Colors.white : const Color(0xFF292D28),
+                      fontSize: 13 * scaleX,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _message(String text, double scaleX) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(24 * scaleX),
+        child: Text(
+          text,
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.cairo(
+            color: _grey,
+            fontSize: 15 * scaleX,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // وسم صغير داخل الكرت
+  Widget _tag(IconData icon, String text, double scaleX) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: 8 * scaleX,
+        vertical: 4 * scaleX,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F6F0),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        textDirection: TextDirection.rtl,
+        children: [
+          Icon(icon, size: 13 * scaleX, color: _green),
+          SizedBox(width: 3 * scaleX),
+          Text(
+            text,
+            textDirection: TextDirection.rtl,
+            style: GoogleFonts.cairo(
+              color: const Color(0xFF292D28),
+              fontSize: 10.5 * scaleX,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _plantTile(Plant plant, double scaleX) {
     return Container(
-      margin: EdgeInsets.only(bottom: 10 * scaleX),
-      padding: EdgeInsets.all(14 * scaleX),
+      margin: EdgeInsets.only(bottom: 12 * scaleX),
+      padding: EdgeInsets.all(12 * scaleX),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFDCE4D8), width: 1.2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border, width: 1.2),
       ),
       child: Row(
         textDirection: TextDirection.rtl,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // صورة بديلة (لما تتوفر الصور من Perenual تتبدل)
           Container(
-            width: 40 * scaleX,
-            height: 40 * scaleX,
+            width: 76 * scaleX,
+            height: 76 * scaleX,
             decoration: BoxDecoration(
               color: const Color(0xFFE8F0E4),
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               Icons.eco_outlined,
-              color: const Color(0xFF315B32),
-              size: 22 * scaleX,
+              color: _green,
+              size: 34 * scaleX,
             ),
           ),
           SizedBox(width: 12 * scaleX),
@@ -263,13 +715,14 @@ class _SearchScreenState extends State<SearchScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  plant.arabicName,
+                  plant.displayName,
                   textDirection: TextDirection.rtl,
-                  maxLines: 1,
+                  textAlign: TextAlign.right,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.cairo(
                     color: const Color(0xFF292D28),
-                    fontSize: 14 * scaleX,
+                    fontSize: 15 * scaleX,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -279,247 +732,36 @@ class _SearchScreenState extends State<SearchScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.cairo(
-                    color: const Color(0xFF7D8079),
-                    fontSize: 11 * scaleX,
-                  ),
-                ),
-                Text(
-                  _classLabel(plant.climateToleranceClass),
-                  textDirection: TextDirection.rtl,
-                  style: GoogleFonts.cairo(
-                    color: const Color(0xFF315B32),
+                    color: _grey,
                     fontSize: 11.5 * scaleX,
-                    fontWeight: FontWeight.w600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                SizedBox(height: 8 * scaleX),
+                // الوسوم في صف واحد، ولو ما كفى المكان تتحرك بالسحب أفقياً
+                Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _tag(Icons.water_drop_outlined,
+                            _waterLabel(plant.wateringRequirement), scaleX),
+                        SizedBox(width: 6 * scaleX),
+                        _tag(Icons.spa_outlined, _careLabel(plant.careLevel),
+                            scaleX),
+                        SizedBox(width: 6 * scaleX),
+                        _tag(Icons.thermostat_outlined,
+                            _toleranceLabel(plant.climateToleranceClass),
+                            scaleX),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // لو النبتة غير موجودة بقاعدة روى: نموذج التصنيف بـ KNN
-  // ============================================================
-  Widget _notFoundSection(double scaleX, double scaleY) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'هذه النبتة غير موجودة في قاعدة بيانات روى',
-          textDirection: TextDirection.rtl,
-          textAlign: TextAlign.right,
-          style: GoogleFonts.cairo(
-            color: const Color(0xFF234525),
-            fontSize: 15 * scaleX,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        SizedBox(height: 4 * scaleY),
-        Text(
-          'أدخلي خصائصها ونتوقع فئة تحملها للمناخ باستخدام KNN',
-          textDirection: TextDirection.rtl,
-          textAlign: TextAlign.right,
-          style: GoogleFonts.cairo(
-            color: const Color(0xFF7D8079),
-            fontSize: 12.5 * scaleX,
-          ),
-        ),
-        SizedBox(height: 18 * scaleY),
-        _label('مستوى الري', scaleX),
-        SizedBox(height: 8 * scaleY),
-        Wrap(
-          alignment: WrapAlignment.end,
-          spacing: 10 * scaleX,
-          runSpacing: 8 * scaleY,
-          children: [
-            _chip('قليل', 'Low', selectedWatering, scaleX,
-                (v) => setState(() => selectedWatering = v)),
-            _chip('متوسط', 'Medium', selectedWatering, scaleX,
-                (v) => setState(() => selectedWatering = v)),
-            _chip('عالي', 'High', selectedWatering, scaleX,
-                (v) => setState(() => selectedWatering = v)),
-          ],
-        ),
-        SizedBox(height: 16 * scaleY),
-        _label('مستوى الضوء', scaleX),
-        SizedBox(height: 8 * scaleY),
-        Wrap(
-          alignment: WrapAlignment.end,
-          spacing: 10 * scaleX,
-          runSpacing: 8 * scaleY,
-          children: [
-            _chip('ظل', 'Shade', selectedLight, scaleX,
-                (v) => setState(() => selectedLight = v)),
-            _chip('شمس جزئية', 'Partial Sun', selectedLight, scaleX,
-                (v) => setState(() => selectedLight = v)),
-            _chip('شمس كاملة', 'Full Sun', selectedLight, scaleX,
-                (v) => setState(() => selectedLight = v)),
-          ],
-        ),
-        SizedBox(height: 16 * scaleY),
-        _numberField(heightController, 'الطول عند النضج (م)', scaleX, scaleY),
-        SizedBox(height: 10 * scaleY),
-        _numberField(spreadController, 'الانتشار عند النضج (م)', scaleX, scaleY),
-        SizedBox(height: 10 * scaleY),
-        _numberField(
-            minTempController, 'أقل حرارة تتحملها (°م)', scaleX, scaleY,
-            signed: true),
-        SizedBox(height: 20 * scaleY),
-        SizedBox(
-          height: 50 * scaleY,
-          child: ElevatedButton(
-            onPressed: _classify,
-            style: ButtonStyle(
-              elevation: const WidgetStatePropertyAll(0),
-              backgroundColor:
-                  const WidgetStatePropertyAll(Color(0xFF315B32)),
-              foregroundColor: const WidgetStatePropertyAll(Colors.white),
-              shape: WidgetStatePropertyAll(
-                RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-            child: Text(
-              'صنّفي النبتة',
-              textDirection: TextDirection.rtl,
-              style: GoogleFonts.cairo(
-                fontSize: 15 * scaleX,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-        if (predictedClass != null) ...[
-          SizedBox(height: 18 * scaleY),
-          Container(
-            padding: EdgeInsets.all(16 * scaleX),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F0E4),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF315B32), width: 1.2),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  'الفئة المتوقعة (KNN)',
-                  textDirection: TextDirection.rtl,
-                  style: GoogleFonts.cairo(
-                    color: const Color(0xFF7D8079),
-                    fontSize: 12 * scaleX,
-                  ),
-                ),
-                SizedBox(height: 4 * scaleX),
-                Text(
-                  _classLabel(predictedClass!),
-                  textDirection: TextDirection.rtl,
-                  style: GoogleFonts.cairo(
-                    color: const Color(0xFF234525),
-                    fontSize: 18 * scaleX,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _label(String text, double scaleX) {
-    return Text(
-      text,
-      textDirection: TextDirection.rtl,
-      textAlign: TextAlign.right,
-      style: GoogleFonts.cairo(
-        color: const Color(0xFF292D28),
-        fontSize: 14 * scaleX,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-
-  Widget _chip(
-    String label,
-    String value,
-    String? selectedValue,
-    double scaleX,
-    ValueChanged<String> onSelect,
-  ) {
-    final selected = selectedValue == value;
-    return GestureDetector(
-      onTap: () => onSelect(value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: EdgeInsets.symmetric(
-          horizontal: 18 * scaleX,
-          vertical: 10 * scaleX,
-        ),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF315B32) : Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(
-            color:
-                selected ? const Color(0xFF315B32) : const Color(0xFFDCE4D8),
-            width: 1.3,
-          ),
-        ),
-        child: Text(
-          label,
-          textDirection: TextDirection.rtl,
-          style: GoogleFonts.cairo(
-            color: selected ? Colors.white : const Color(0xFF292D28),
-            fontSize: 13 * scaleX,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _numberField(
-    TextEditingController controller,
-    String hint,
-    double scaleX,
-    double scaleY, {
-    bool signed = false,
-  }) {
-    return SizedBox(
-      height: 50 * scaleY,
-      child: TextField(
-        controller: controller,
-        keyboardType:
-            TextInputType.numberWithOptions(decimal: true, signed: signed),
-        textDirection: TextDirection.rtl,
-        textAlign: TextAlign.right,
-        style: GoogleFonts.cairo(
-          color: const Color(0xFF234525),
-          fontSize: 13 * scaleX,
-        ),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintTextDirection: TextDirection.rtl,
-          hintStyle: GoogleFonts.cairo(
-            color: const Color(0xFF8A8D87),
-            fontSize: 13 * scaleX,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: EdgeInsets.symmetric(horizontal: 16 * scaleX),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFFDCE4D8), width: 1.3),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFF315B32), width: 1.7),
-          ),
-        ),
       ),
     );
   }

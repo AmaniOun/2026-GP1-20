@@ -66,7 +66,7 @@ flutter:
         - assets/images/ruwa_logo.png
         - assets/images/top_leaves.png
         - assets/images/bottom_decoration.png
-        - assets/plants.json
+        - assets/data/plants.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
