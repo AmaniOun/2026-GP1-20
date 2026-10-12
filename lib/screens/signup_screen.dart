@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'login_screen.dart';
 import 'main_navigation_screen.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -51,7 +54,7 @@ class _SignupScreenState extends State<SignupScreen> {
   // ==========================================
   // إنشاء الحساب
   // ==========================================
-  void _createAccount() {
+    Future<void> _createAccount() async {
     final name = nameController.text.trim();
     final email = emailController.text.trim();
     final password = passwordController.text;
@@ -86,29 +89,51 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // ==========================================
-    // مؤقتًا:
-    // ننقل الاسم والإيميل إلى MainNavigationScreen.
-    //
-    // initialIndex = 4
-    // يعني فتح صفحة "حسابي" بعد إنشاء الحساب.
-    //
-    // لاحقًا سيتم ربط إنشاء الحساب
-    // بـ Authentication + Database.
-    // ==========================================
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MainNavigationScreen(
-          name: name,
-          email: email,
-          initialIndex: 4,
-        ),
-      ),
-      (route) => false,
-    );
-  }
+    try {
+      // إنشاء الحساب فعليًا في Firebase Authentication
+      final userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
+      // حفظ بيانات المستخدم في Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+        'full_name': name,
+        'email': email,
+      });
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MainNavigationScreen(
+            name: name,
+            email: email,
+            initialIndex: 4,
+          ),
+        ),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        _showMessage('هذا البريد الإلكتروني مستخدم بالفعل');
+      } else if (e.code == 'weak-password') {
+        _showMessage('كلمة المرور ضعيفة جدًا');
+      } else if (e.code == 'invalid-email') {
+        _showMessage('صيغة البريد الإلكتروني غير صحيحة');
+      } else {
+        _showMessage('حدث خطأ: ${e.message}');
+      }
+    } catch (e) {
+      _showMessage('حدث خطأ غير متوقع، حاول مرة أخرى');
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
