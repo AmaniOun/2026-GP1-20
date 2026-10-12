@@ -107,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _showMessage('لا يوجد حساب بهذا البريد الإلكتروني');
       } else if (e.code == 'wrong-password' ||
           e.code == 'invalid-credential') {
-        _showMessage('كلمة المرور غير صحيحة');
+        _showMessage('البريد الإلكتروني أو كلمة المرور غير صحيحة');
       } else if (e.code == 'invalid-email') {
         _showMessage('صيغة البريد الإلكتروني غير صحيحة');
       } else {
