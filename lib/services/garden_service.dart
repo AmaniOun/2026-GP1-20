@@ -1,39 +1,52 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/garden_profile.dart';
 
 // ==========================================
 // GardenService
 //
-// مؤقتاً: يخزن بيانات الحديقة بالذاكرة فقط (Mock)،
-// لحد ما يتم ربط Firebase/Firestore فعلياً من قبل
-// العضوة المسؤولة عن قاعدة البيانات.
-//
-// كل الدوال async وترجع Future، بنفس الشكل اللي
-// راح تكون فيه مع Firestore (save/get/update)، عشان لما
-// يصير الربط الفعلي نغيّر بس "جسم" الدالة بدون ما نغيّر
-// أي كود بالشاشات اللي تستخدم هذا الـ Service.
+// يحفظ بيانات الحديقة داخل مستند المستخدم
+// في Firestore، تحت الحقل "garden"
+// (حسب ER: كل User له 0..1 GardenProfile).
 // ==========================================
 class GardenService {
   GardenService._internal();
   static final GardenService instance = GardenService._internal();
 
-  GardenProfile? _savedGarden;
+  String get _uid {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('لا يوجد مستخدم مسجل الدخول حالياً');
+    }
+    return user.uid;
+  }
 
   Future<void> saveGarden(GardenProfile garden) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _savedGarden = garden;
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_uid)
+        .set({'garden': garden.toMap()}, SetOptions(merge: true));
   }
 
   Future<GardenProfile?> getGarden() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return _savedGarden;
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(_uid).get();
+
+    if (!doc.exists) return null;
+    final data = doc.data();
+    if (data == null || data['garden'] == null) return null;
+
+    return GardenProfile.fromMap(
+      Map<String, dynamic>.from(data['garden'] as Map),
+    );
   }
 
   Future<void> updateGarden(GardenProfile garden) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _savedGarden = garden;
+    await saveGarden(garden);
   }
 
   void clear() {
-    _savedGarden = null;
+    // لا حاجة فعلية هنا مع Firestore، أبقيناها حتى لا ينكسر الكود القديم
   }
 }
