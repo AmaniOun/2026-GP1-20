@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -236,7 +238,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         SizedBox(
                           height: 52 * scaleY,
                           child: ElevatedButton(
-                            onPressed: () {
+                                                        onPressed: () async {
                               final email =
                                   emailController.text.trim();
 
@@ -257,10 +259,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 return;
                               }
 
-                              // لاحقاً سنربطه بخدمة Authentication
-                              _showMessage(
-                                'سيتم إرسال رابط إعادة التعيين إلى بريدك',
-                              );
+                              try {
+                                await FirebaseAuth.instance
+                                    .sendPasswordResetEmail(email: email);
+
+                                _showMessage(
+                                  'تم إرسال رابط إعادة التعيين إلى بريدك',
+                                );
+                              } on FirebaseAuthException catch (e) {
+                                if (e.code == 'user-not-found') {
+                                  _showMessage(
+                                    'لا يوجد حساب بهذا البريد الإلكتروني',
+                                  );
+                                } else {
+                                  _showMessage('حدث خطأ: ${e.message}');
+                                }
+                              } catch (e) {
+                                _showMessage(
+                                  'حدث خطأ غير متوقع، حاول مرة أخرى',
+                                );
+                              }
                             },
 
                             style: ButtonStyle(
