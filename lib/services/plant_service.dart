@@ -1,13 +1,10 @@
 // ============================================================
 // (PlantService) تحميل النباتات + البحث بالاسم
 //
-// مؤقتاً: يقرأ من assets/data/plants.json (الداتاسيت).
-// لما يجهز Firestore (رقم 13) نغيّر جسم loadPlants فقط
-// وبقية الكود (البحث والشاشات) ما يتغير.
+// يقرأ النباتات من مجموعة "plants" في Firestore.
 // ============================================================
 
-import 'dart:convert';
-import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/garden_profile.dart';
 import '../models/plant.dart';
@@ -18,15 +15,35 @@ class PlantService {
 
   List<Plant>? _cache;
 
-  /// يحمّل كل النباتات (مرة واحدة ويخزنها بالكاش)
+  
+   /// يحمّل كل النباتات من Firestore (مرة واحدة ويخزنها بالكاش)
   Future<List<Plant>> loadPlants() async {
     if (_cache != null) return _cache!;
 
-    final raw = await rootBundle.loadString('assets/data/plants.json');
-    final List<dynamic> list = jsonDecode(raw);
-    _cache = list
-        .map((e) => Plant.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final snapshot =
+        await FirebaseFirestore.instance.collection('plants').get();
+
+    _cache = snapshot.docs.map((doc) {
+      final raw = doc.data();
+
+      final mapped = {
+        'id': raw['Plant_ID'] ?? doc.id,
+        'arabicName': raw['Arabic_Name'],
+        'scientificName': raw['Scientific_Name'],
+        'wateringRequirement': raw['Watering_Requirement'],
+        'lightRequirement': raw['Light_Requirement'],
+        'careLevel': raw['Care_Level'],
+        'matureHeight': raw['Mature_Height'],
+        'matureSpread': raw['Mature_Spread'],
+        'minTemperatureC': raw['Min_Temperature_C'],
+        'maxTemperatureC': raw['Max_Temperature_C'],
+        'climateToleranceClass': raw['Climate_Tolerance_Class'],
+        'recordType': raw['Record_Type'],
+      };
+
+      return Plant.fromJson(mapped);
+    }).toList();
+
     return _cache!;
   }
 
@@ -97,7 +114,7 @@ class PlantService {
   /// توحيد النص: حروف صغيرة، وإزالة التشكيل، وتوحيد الألف والتاء المربوطة والياء
   String _normalize(String s) {
     var t = s.trim().toLowerCase();
-    t = t.replaceAll(RegExp('[ً-ٰٟـ]'), '');
+    t = t.replaceAll(RegExp('[ً-ٰٟـ]'), '');
     t = t
         .replaceAll('أ', 'ا')
         .replaceAll('إ', 'ا')
