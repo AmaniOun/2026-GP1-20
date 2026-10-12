@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 import 'main_navigation_screen.dart';
@@ -47,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // ==========================================
   // تسجيل الدخول
   // ==========================================
-  void _login() {
+    Future<void> _login() async {
     final email = emailController.text.trim();
     final password = passwordController.text;
 
@@ -71,30 +74,50 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // ==========================================
-    // مؤقتًا:
-    // Login لا يحتوي على الاسم.
-    // لذلك نرسل اسمًا عامًا.
-    //
-    // بعد ربط قاعدة البيانات سنجلب
-    // الاسم الحقيقي من حساب المستخدم.
-    //
-    // initialIndex = 4
-    // يعني نفتح صفحة "حسابي" مؤقتًا.
-    // لاحقًا عندما تجهز الرئيسية نغيره إلى 0.
-    // ==========================================
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MainNavigationScreen(
-          name: 'مستخدم رُوى',
-          email: email,
-          initialIndex: 4,
+    try {
+      final userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // جلب الاسم الحقيقي من Firestore
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      final name = (doc.data()?['full_name'] as String?) ?? 'مستخدم رُوى';
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MainNavigationScreen(
+            name: name,
+            email: email,
+            initialIndex: 4,
+          ),
         ),
-      ),
-      (route) => false,
-    );
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        _showMessage('لا يوجد حساب بهذا البريد الإلكتروني');
+      } else if (e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
+        _showMessage('كلمة المرور غير صحيحة');
+      } else if (e.code == 'invalid-email') {
+        _showMessage('صيغة البريد الإلكتروني غير صحيحة');
+      } else {
+        _showMessage('حدث خطأ: ${e.message}');
+      }
+    } catch (e) {
+      _showMessage('حدث خطأ غير متوقع، حاول مرة أخرى');
+    }
   }
+  
 
   @override
   Widget build(BuildContext context) {
