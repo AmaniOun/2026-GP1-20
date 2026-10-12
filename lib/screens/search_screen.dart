@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'plant_details_screen.dart';
 import '../models/plant.dart';
 import '../services/plant_service.dart';
 
@@ -682,8 +682,21 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _plantTile(Plant plant, double scaleX) {
-    return Container(
+  
+Widget _plantTile(Plant plant, double scaleX) {
+  return InkWell(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PlantDetailsScreen(
+            plant: plant,
+          ),
+        ),
+      );
+    },
+    borderRadius: BorderRadius.circular(16),
+    child: Container(
       margin: EdgeInsets.only(bottom: 12 * scaleX),
       padding: EdgeInsets.all(12 * scaleX),
       decoration: BoxDecoration(
@@ -695,7 +708,7 @@ class _SearchScreenState extends State<SearchScreen> {
         textDirection: TextDirection.rtl,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // صورة بديلة (لما تتوفر الصور من Perenual تتبدل)
+          // صورة مؤقتة إلى أن نربط صور Perenual بنتائج البحث.
           Container(
             width: 76 * scaleX,
             height: 76 * scaleX,
@@ -738,22 +751,29 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                 ),
                 SizedBox(height: 8 * scaleX),
-                // الوسوم في صف واحد، ولو ما كفى المكان تتحرك بالسحب أفقياً
                 Directionality(
                   textDirection: TextDirection.rtl,
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _tag(Icons.water_drop_outlined,
-                            _waterLabel(plant.wateringRequirement), scaleX),
+                        _tag(
+                          Icons.water_drop_outlined,
+                          _waterLabel(plant.wateringRequirement),
+                          scaleX,
+                        ),
                         SizedBox(width: 6 * scaleX),
-                        _tag(Icons.spa_outlined, _careLabel(plant.careLevel),
-                            scaleX),
+                        _tag(
+                          Icons.spa_outlined,
+                          _careLabel(plant.careLevel),
+                          scaleX,
+                        ),
                         SizedBox(width: 6 * scaleX),
-                        _tag(Icons.thermostat_outlined,
-                            _toleranceLabel(plant.climateToleranceClass),
-                            scaleX),
+                        _tag(
+                          Icons.thermostat_outlined,
+                          _toleranceLabel(plant.climateToleranceClass),
+                          scaleX,
+                        ),
                       ],
                     ),
                   ),
@@ -763,6 +783,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
