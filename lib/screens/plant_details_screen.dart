@@ -36,17 +36,24 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   }
 
   String _translateLevel(String value) {
-    switch (value.toLowerCase()) {
-      case 'low':
-        return 'منخفض';
-      case 'moderate':
-        return 'متوسط';
-      case 'high':
-        return 'مرتفع';
-      default:
-        return value;
-    }
+  switch (value.trim().toLowerCase()) {
+    case 'low':
+      return 'منخفض';
+    case 'moderate':
+    case 'medium':
+      return 'متوسط';
+    case 'high':
+      return 'مرتفع';
+    case 'highly tolerant':
+      return 'عالي التحمل';
+    case 'moderately tolerant':
+      return 'متوسط التحمل';
+    case 'poorly tolerant':
+      return 'ضعيف التحمل';
+    default:
+      return value;
   }
+}
 
   String _translateLight(String value) {
     switch (value.toLowerCase()) {
@@ -413,16 +420,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 10),
-                Center(
-                  child: Text(
-                    'ستتوفر هذه الميزات عند ربطها بحديقتك',
-                    style: GoogleFonts.cairo(
-                      fontSize: 11,
-                      color: _sage,
-                    ),
-                  ),
-                ),
               ],
             );
           },
