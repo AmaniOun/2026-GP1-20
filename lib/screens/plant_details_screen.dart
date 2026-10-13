@@ -1,40 +1,52 @@
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../models/plant.dart';
 import '../services/perenual_service.dart';
-
+import '../services/plant_translation_service.dart';
+import '../services/plant_image_service.dart';
 class PlantDetailsScreen extends StatefulWidget {
   final Plant plant;
-
   const PlantDetailsScreen({
     super.key,
     required this.plant,
   });
-
   @override
   State<PlantDetailsScreen> createState() => _PlantDetailsScreenState();
 }
-
 class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   static const Color _background = Color(0xFFFAF9F4);
   static const Color _green = Color(0xFF315B32);
   static const Color _darkGreen = Color(0xFF234525);
   static const Color _sage = Color(0xFF6F8F64);
   static const Color _lightSage = Color(0xFFE8F0E4);
-  static const Color _gold = Color(0xFFE9B84F);
-
-  late final Future<Map<String, dynamic>?> _detailsFuture;
-
+  late final Future<List<Map<String, dynamic>>> _careFuture;
+  late final Future<String?> _imageFuture;
+  final Map<String, Future<String>> _translationFutures = {};
+  Future<String> _translationFor(String description) {
+    return _translationFutures.putIfAbsent(
+      description,
+      () => PlantTranslationService.instance.translateCareDescription(description),
+    );
+  }
   @override
   void initState() {
     super.initState();
-    _detailsFuture = PerenualService.instance.getPlantDetails(
-      widget.plant.scientificName,
-    );
+    _imageFuture = PlantImageService.instance.imageFor(widget.plant.scientificName);
+    _careFuture = _loadCareGuides();
   }
-
+  Future<List<Map<String, dynamic>>> _loadCareGuides() async {
+    try {
+      final plant = await PerenualService.instance.findPlant(
+        widget.plant.scientificName,
+      );
+      final id = plant?['id'];
+      if (id is! int) return [];
+      return await PerenualService.instance.getCareGuides(id);
+    } catch (error) {
+      debugPrint('Perenual care guides error: $error');
+      return [];
+    }
+  }
   String _translateLevel(String value) {
   switch (value.trim().toLowerCase()) {
     case 'low':
@@ -54,7 +66,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
       return value;
   }
 }
-
   String _translateLight(String value) {
     switch (value.toLowerCase()) {
       case 'full sun':
@@ -68,7 +79,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
         return value;
     }
   }
-
   String _careTitle(String value) {
     switch (value.toLowerCase()) {
       case 'watering':
@@ -81,7 +91,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
         return value;
     }
   }
-
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -95,7 +104,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
       ),
     );
   }
-
   Widget _requirementCard({
     required IconData icon,
     required String label,
@@ -146,8 +154,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
       ),
     );
   }
-
-  Widget _imageSection(String? imageUrl) {
+  Widget _imageSection() {
     return Container(
       height: 245,
       width: double.infinity,
@@ -156,38 +163,47 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
         borderRadius: BorderRadius.circular(24),
       ),
       clipBehavior: Clip.antiAlias,
-      child: imageUrl == null
-          ? const Center(
-              child: Icon(
-                Icons.local_florist_outlined,
-                size: 85,
-                color: _sage,
-              ),
-            )
-          : Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) {
-                return const Center(
-                  child: Icon(
-                    Icons.local_florist_outlined,
-                    size: 85,
-                    color: _sage,
-                  ),
-                );
-              },
-            ),
+      child: FutureBuilder<String?>(
+        future: _imageFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(
+              child: CircularProgressIndicator(color: _green),
+            );
+          }
+          final imageUrl = snapshot.data;
+          if (imageUrl == null || imageUrl.isEmpty) {
+            return const Center(
+              child: Icon(Icons.local_florist_outlined, size: 85, color: _sage),
+            );
+          }
+          return Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return const Center(
+                child: CircularProgressIndicator(color: _green),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Icon(Icons.local_florist_outlined, size: 85, color: _sage),
+              );
+            },
+          );
+        },
+      ),
     );
   }
-
   Widget _careGuideCard(Map<String, dynamic> guide) {
     final type = (guide['type'] ?? '').toString();
     final description = (guide['description'] ?? '').toString();
-
     if (description.trim().isEmpty) {
       return const SizedBox.shrink();
     }
-
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
@@ -209,24 +225,45 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
             ),
           ),
           const SizedBox(height: 7),
-          Text(
-            description,
-            textDirection: TextDirection.ltr,
-            style: GoogleFonts.cairo(
-              fontSize: 13,
-              height: 1.8,
-              color: Colors.black87,
-            ),
+          FutureBuilder<String>(
+            future: _translationFor(description),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: CircularProgressIndicator(color: _green),
+                  ),
+                );
+              }
+              final translated = snapshot.data?.trim() ?? '';
+              final hasArabic = RegExp(r'[\u0600-\u06FF]').hasMatch(translated);
+              if (snapshot.hasError || !hasArabic) {
+                return Text(
+                  'تعذّر عرض إرشادات العناية بالعربية حاليًا.',
+                  textDirection: TextDirection.rtl,
+                  style: GoogleFonts.cairo(fontSize: 13, color: _sage),
+                );
+              }
+              return Text(
+                translated,
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.right,
+                style: GoogleFonts.cairo(
+                  fontSize: 13,
+                  height: 1.8,
+                  color: Colors.black87,
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     final plant = widget.plant;
-
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -252,21 +289,14 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        body: FutureBuilder<Map<String, dynamic>?>(
-          future: _detailsFuture,
+        body: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _careFuture,
           builder: (context, snapshot) {
-            final details = snapshot.data;
-            final imageUrl = details?['imageUrl'] as String?;
-            final guides =
-                (details?['careGuides'] as List?)
-                    ?.whereType<Map<String, dynamic>>()
-                    .toList() ??
-                [];
-
+            final guides = snapshot.data ?? <Map<String, dynamic>>[];
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
               children: [
-                _imageSection(imageUrl),
+                _imageSection(),
                 const SizedBox(height: 20),
                 Text(
                   plant.displayName,
@@ -287,7 +317,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 26),
-
                 _sectionTitle('متطلبات النبات'),
                 _requirementCard(
                   icon: Icons.water_drop_outlined,
@@ -310,7 +339,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                   label: 'مستوى العناية',
                   value: _translateLevel(plant.careLevel),
                 ),
-
                 if (plant.climateToleranceClass != null) ...[
                   const SizedBox(height: 10),
                   _requirementCard(
@@ -321,7 +349,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                     ),
                   ),
                 ],
-
                 if (plant.matureHeight != null ||
                     plant.matureSpread != null ||
                     plant.minTemperatureC != null ||
@@ -357,25 +384,47 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                     ),
                   ],
                 ],
-
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) ...[
-                  const SizedBox(height: 28),
-                  const Center(
-                    child: CircularProgressIndicator(
-                      color: _green,
+                const SizedBox(height: 28),
+                _sectionTitle('إرشادات العناية'),
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Column(
+                      children: [
+                        const CircularProgressIndicator(color: _green),
+                        const SizedBox(height: 12),
+                        Text(
+                          'جارٍ جلب إرشادات العناية بالنبات...',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.cairo(
+                            fontSize: 13,
+                            color: _sage,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (guides.isNotEmpty)
+                  ...guides.map(_careGuideCard)
+                else
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: _lightSage),
+                    ),
+                    child: Text(
+                      'لا توجد إرشادات عناية متوفرة لهذا النبات حاليًا.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.cairo(
+                        fontSize: 13,
+                        color: _sage,
+                      ),
                     ),
                   ),
-                ],
-
-                if (guides.isNotEmpty) ...[
-                  const SizedBox(height: 28),
-                  _sectionTitle('إرشادات العناية'),
-                  ...guides.map(_careGuideCard),
-                ],
-
                 const SizedBox(height: 30),
-
                 SizedBox(
                   height: 54,
                   child: ElevatedButton.icon(
@@ -419,7 +468,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                     ),
                   ),
                 ),
-
               ],
             );
           },

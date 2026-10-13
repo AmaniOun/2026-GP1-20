@@ -1,28 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'login_screen.dart';
 import 'main_navigation_screen.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
-
   @override
   State<SignupScreen> createState() => _SignupScreenState();
 }
-
 class _SignupScreenState extends State<SignupScreen> {
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
-
   bool obscurePassword = true;
   bool obscureConfirmPassword = true;
-
+  bool _isCreatingAccount = false;
   @override
   void dispose() {
     nameController.dispose();
@@ -31,13 +25,11 @@ class _SignupScreenState extends State<SignupScreen> {
     confirmPasswordController.dispose();
     super.dispose();
   }
-
   // ==========================================
   // إظهار رسالة للمستخدم
   // ==========================================
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -50,16 +42,15 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
     );
   }
-
   // ==========================================
   // إنشاء الحساب
   // ==========================================
     Future<void> _createAccount() async {
+    if (_isCreatingAccount) return;
     final name = nameController.text.trim();
     final email = emailController.text.trim();
     final password = passwordController.text;
     final confirmPassword = confirmPasswordController.text;
-
     // التأكد من تعبئة الحقول
     if (name.isEmpty ||
         email.isEmpty ||
@@ -68,13 +59,11 @@ class _SignupScreenState extends State<SignupScreen> {
       _showMessage('يرجى تعبئة جميع الحقول');
       return;
     }
-
     // التحقق المبدئي من البريد
     if (!email.contains('@') || !email.contains('.')) {
       _showMessage('يرجى إدخال بريد إلكتروني صحيح');
       return;
     }
-
     // التحقق من طول كلمة المرور
     if (password.length < 6) {
       _showMessage(
@@ -82,13 +71,12 @@ class _SignupScreenState extends State<SignupScreen> {
       );
       return;
     }
-
     // التأكد من تطابق كلمتي المرور
     if (password != confirmPassword) {
       _showMessage('كلمتا المرور غير متطابقتين');
       return;
     }
-
+    setState(() => _isCreatingAccount = true);
     try {
       // إنشاء الحساب فعليًا في Firebase Authentication
       final userCredential =
@@ -96,7 +84,6 @@ class _SignupScreenState extends State<SignupScreen> {
         email: email,
         password: password,
       );
-
       // حفظ بيانات المستخدم في Firestore
       await FirebaseFirestore.instance
           .collection('users')
@@ -105,9 +92,7 @@ class _SignupScreenState extends State<SignupScreen> {
         'full_name': name,
         'email': email,
       });
-
       if (!mounted) return;
-
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
@@ -120,6 +105,7 @@ class _SignupScreenState extends State<SignupScreen> {
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       if (e.code == 'email-already-in-use') {
         _showMessage('هذا البريد الإلكتروني مستخدم بالفعل');
       } else if (e.code == 'weak-password') {
@@ -130,25 +116,23 @@ class _SignupScreenState extends State<SignupScreen> {
         _showMessage('حدث خطأ: ${e.message}');
       }
     } catch (e) {
-      _showMessage('حدث خطأ غير متوقع، حاول مرة أخرى');
+      if (mounted) _showMessage('حدث خطأ غير متوقع، حاول مرة أخرى');
+    } finally {
+      if (mounted) setState(() => _isCreatingAccount = false);
     }
   }
-  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F4),
       resizeToAvoidBottomInset: true,
-
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
             final height = constraints.maxHeight;
-
             final scaleX = width / 360;
             final scaleY = height / 800;
-
             return Stack(
               children: [
                 // ==========================================
@@ -167,28 +151,23 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                 ),
-
                 // ==========================================
                 // محتوى الصفحة
                 // ==========================================
                 SingleChildScrollView(
                   physics: const ClampingScrollPhysics(),
-
                   padding: EdgeInsets.only(
                     left: 24 * scaleX,
                     right: 24 * scaleX,
                     top: 18 * scaleY,
                     bottom: 35 * scaleY,
                   ),
-
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minHeight: height - (53 * scaleY),
                     ),
-
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-
                       children: [
                         // ==================================
                         // زر الرجوع
@@ -208,9 +187,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                           ),
                         ),
-
                         SizedBox(height: 14 * scaleY),
-
                         // ==================================
                         // الشعار
                         // ==================================
@@ -221,9 +198,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             fit: BoxFit.contain,
                           ),
                         ),
-
                         SizedBox(height: 15 * scaleY),
-
                         // ==================================
                         // العنوان
                         // ==================================
@@ -237,9 +212,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-
                         SizedBox(height: 5 * scaleY),
-
                         Text(
                           'ابدأ رحلتك مع رُوى\nوكن جزءاً من مجتمع محبي النباتات',
                           textDirection: TextDirection.rtl,
@@ -251,9 +224,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             height: 1.5,
                           ),
                         ),
-
                         SizedBox(height: 20 * scaleY),
-
                         // ==================================
                         // الاسم الكامل
                         // ==================================
@@ -261,9 +232,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           'الاسم الكامل',
                           scaleX,
                         ),
-
                         SizedBox(height: 6 * scaleY),
-
                         _buildTextField(
                           controller: nameController,
                           hint: 'أدخل اسمك الكامل',
@@ -272,9 +241,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           scaleY: scaleY,
                           keyboardType: TextInputType.name,
                         ),
-
                         SizedBox(height: 16 * scaleY),
-
                         // ==================================
                         // البريد الإلكتروني
                         // ==================================
@@ -282,9 +249,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           'البريد الإلكتروني',
                           scaleX,
                         ),
-
                         SizedBox(height: 6 * scaleY),
-
                         _buildTextField(
                           controller: emailController,
                           hint: 'أدخل بريدك الإلكتروني',
@@ -293,9 +258,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           scaleY: scaleY,
                           keyboardType: TextInputType.emailAddress,
                         ),
-
                         SizedBox(height: 16 * scaleY),
-
                         // ==================================
                         // كلمة المرور
                         // ==================================
@@ -303,9 +266,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           'كلمة المرور',
                           scaleX,
                         ),
-
                         SizedBox(height: 6 * scaleY),
-
                         _buildPasswordField(
                           controller: passwordController,
                           hint: 'أدخل كلمة المرور',
@@ -318,9 +279,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             });
                           },
                         ),
-
                         SizedBox(height: 16 * scaleY),
-
                         // ==================================
                         // تأكيد كلمة المرور
                         // ==================================
@@ -328,9 +287,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           'تأكيد كلمة المرور',
                           scaleX,
                         ),
-
                         SizedBox(height: 6 * scaleY),
-
                         _buildPasswordField(
                           controller: confirmPasswordController,
                           hint: 'أعد إدخال كلمة المرور',
@@ -344,21 +301,17 @@ class _SignupScreenState extends State<SignupScreen> {
                             });
                           },
                         ),
-
                         SizedBox(height: 20 * scaleY),
-
                         // ==================================
                         // زر إنشاء الحساب
                         // ==================================
                         SizedBox(
                           height: 52 * scaleY,
                           child: ElevatedButton(
-                            onPressed: _createAccount,
-
+                            onPressed: _isCreatingAccount ? null : _createAccount,
                             style: ButtonStyle(
                               elevation:
                                   const WidgetStatePropertyAll(0),
-
                               backgroundColor:
                                   WidgetStateProperty.resolveWith<Color>(
                                 (states) {
@@ -367,22 +320,18 @@ class _SignupScreenState extends State<SignupScreen> {
                                   )) {
                                     return const Color(0xFF234525);
                                   }
-
                                   if (states.contains(
                                     WidgetState.hovered,
                                   )) {
                                     return const Color(0xFF3D6A3E);
                                   }
-
-                                  return const Color(0xFF315B32);
+                                  return _isCreatingAccount
+                                          ? const Color(0xFF6F8F64)
+                                          : const Color(0xFF315B32);
                                 },
                               ),
-
                               foregroundColor:
-                                  const WidgetStatePropertyAll(
-                                Colors.white,
-                              ),
-
+                                  const WidgetStatePropertyAll(Colors.white),
                               overlayColor:
                                   WidgetStateProperty.resolveWith<Color?>(
                                 (states) {
@@ -393,11 +342,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                       alpha: 0.10,
                                     );
                                   }
-
                                   return null;
                                 },
                               ),
-
                               shape: WidgetStatePropertyAll(
                                 RoundedRectangleBorder(
                                   borderRadius:
@@ -405,13 +352,14 @@ class _SignupScreenState extends State<SignupScreen> {
                                 ),
                               ),
                             ),
-
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
                                 Center(
                                   child: Text(
-                                    'إنشاء الحساب',
+                                    _isCreatingAccount
+                                        ? 'جارٍ إنشاء الحساب...'
+                                        : 'إنشاء الحساب',
                                     textDirection: TextDirection.rtl,
                                     style: GoogleFonts.cairo(
                                       fontSize: 17 * scaleX,
@@ -419,21 +367,27 @@ class _SignupScreenState extends State<SignupScreen> {
                                     ),
                                   ),
                                 ),
-
                                 Align(
                                   alignment: Alignment.centerLeft,
-                                  child: Icon(
-                                    Icons.arrow_back,
-                                    size: 23 * scaleX,
-                                  ),
+                                  child: _isCreatingAccount
+                                      ? SizedBox(
+                                          width: 22 * scaleX,
+                                          height: 22 * scaleX,
+                                          child: const CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.arrow_back,
+                                          size: 23 * scaleX,
+                                        ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-
                         SizedBox(height: 22 * scaleY),
-
                         // ==================================
                         // لديك حساب بالفعل؟
                         // ==================================
@@ -448,7 +402,6 @@ class _SignupScreenState extends State<SignupScreen> {
                                 fontSize: 12 * scaleX,
                               ),
                             ),
-
                             GestureDetector(
                               onTap: () {
                                 Navigator.pushReplacement(
@@ -459,7 +412,6 @@ class _SignupScreenState extends State<SignupScreen> {
                                   ),
                                 );
                               },
-
                               child: Text(
                                 'تسجيل الدخول',
                                 style: GoogleFonts.cairo(
@@ -471,7 +423,6 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                           ],
                         ),
-
                         SizedBox(height: 70 * scaleY),
                       ],
                     ),
@@ -484,7 +435,6 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
     );
   }
-
   // ==========================================
   // عنوان الحقل
   // ==========================================
@@ -503,7 +453,6 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
     );
   }
-
   // ==========================================
   // حقل نص عادي
   // ==========================================
@@ -522,34 +471,27 @@ class _SignupScreenState extends State<SignupScreen> {
         keyboardType: keyboardType,
         textDirection: TextDirection.rtl,
         textAlign: TextAlign.right,
-
         style: GoogleFonts.cairo(
           color: const Color(0xFF234525),
           fontSize: 13 * scaleX,
         ),
-
         decoration: InputDecoration(
           hintText: hint,
           hintTextDirection: TextDirection.rtl,
-
           hintStyle: GoogleFonts.cairo(
             color: const Color(0xFF8A8D87),
             fontSize: 13 * scaleX,
           ),
-
           suffixIcon: Icon(
             icon,
             color: const Color(0xFF315B32),
             size: 24 * scaleX,
           ),
-
           filled: true,
           fillColor: Colors.white,
-
           contentPadding: EdgeInsets.symmetric(
             horizontal: 16 * scaleX,
           ),
-
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(
@@ -557,7 +499,6 @@ class _SignupScreenState extends State<SignupScreen> {
               width: 1.3,
             ),
           ),
-
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(
@@ -569,7 +510,6 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
     );
   }
-
   // ==========================================
   // حقل كلمة المرور
   // ==========================================
@@ -588,28 +528,23 @@ class _SignupScreenState extends State<SignupScreen> {
         obscureText: obscureText,
         textDirection: TextDirection.rtl,
         textAlign: TextAlign.right,
-
         style: GoogleFonts.cairo(
           color: const Color(0xFF234525),
           fontSize: 13 * scaleX,
         ),
-
         decoration: InputDecoration(
           hintText: hint,
           hintTextDirection: TextDirection.rtl,
-
           hintStyle: GoogleFonts.cairo(
             color: const Color(0xFF8A8D87),
             fontSize: 13 * scaleX,
           ),
-
           // القفل على اليمين
           suffixIcon: Icon(
             Icons.lock_outline_rounded,
             color: const Color(0xFF315B32),
             size: 25 * scaleX,
           ),
-
           // العين على اليسار
           prefixIcon: IconButton(
             onPressed: onEyePressed,
@@ -621,14 +556,11 @@ class _SignupScreenState extends State<SignupScreen> {
               size: 23 * scaleX,
             ),
           ),
-
           filled: true,
           fillColor: Colors.white,
-
           contentPadding: EdgeInsets.symmetric(
             horizontal: 16 * scaleX,
           ),
-
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(
@@ -636,7 +568,6 @@ class _SignupScreenState extends State<SignupScreen> {
               width: 1.3,
             ),
           ),
-
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(

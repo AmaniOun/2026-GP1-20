@@ -1,9 +1,9 @@
-// ============================================================
-// (PlantService) تحميل النباتات + البحث بالاسم
-//
-// يقرأ النباتات من مجموعة "plants" في Firestore.
-// ============================================================
 
+ // ============================================================
+ // (PlantService) تحميل النباتات + البحث بالاسم
+ //
+ // يقرأ النباتات من مجموعة "plants" في Firestore.
+ // ============================================================
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/garden_profile.dart';
@@ -15,8 +15,7 @@ class PlantService {
 
   List<Plant>? _cache;
 
-  
-   /// يحمّل كل النباتات من Firestore (مرة واحدة ويخزنها بالكاش)
+  /// يحمّل كل النباتات من Firestore (مرة واحدة ويخزنها بالكاش)
   Future<List<Plant>> loadPlants() async {
     if (_cache != null) return _cache!;
 
@@ -94,7 +93,6 @@ class PlantService {
   }
 
   /// فلترة بالخصائص (الماء، تحمل المناخ، العناية). null = بدون فلتر.
-  /// الفلاتر المتعددة تُطبَّق مع بعض (AND).
   List<Plant> filter(
     List<Plant> plants, {
     String? water,

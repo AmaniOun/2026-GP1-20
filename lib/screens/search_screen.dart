@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'plant_details_screen.dart';
 import '../models/plant.dart';
 import '../services/plant_service.dart';
-
+import '../services/plant_image_service.dart';
 // ==========================================
 // شاشة البحث عن النباتات
 //
@@ -14,34 +14,26 @@ import '../services/plant_service.dart';
 // ==========================================
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
-
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
-
 class _SearchScreenState extends State<SearchScreen> {
   static const _green = Color(0xFF315B32);
   static const _darkGreen = Color(0xFF234525);
   static const _border = Color(0xFFDCE4D8);
   static const _grey = Color(0xFF7D8079);
-
   final _searchController = TextEditingController();
-
   List<Plant> _allPlants = [];
   bool _isLoading = true;
   String? _error;
   String _query = '';
-
   // الفلاتر (null = بدون فلتر)
   String? _water; // Low / Moderate / High
   String? _tolerance; // High / Moderate / Low
   String? _care; // Low / Moderate / High
-
   bool get _hasFilters => _water != null || _tolerance != null || _care != null;
-
   int get _filterCount =>
       [_water, _tolerance, _care].where((e) => e != null).length;
-
   // خيارات الفلاتر (القيمة في الداتاسيت: النص العربي)
   static const _waterOptions = {
     'Low': 'ري منخفض',
@@ -58,19 +50,16 @@ class _SearchScreenState extends State<SearchScreen> {
     'Moderate': 'عناية متوسطة',
     'High': 'عناية عالية',
   };
-
   @override
   void initState() {
     super.initState();
     _loadPlants();
   }
-
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
-
   Future<void> _loadPlants() async {
     try {
       final plants = await PlantService.instance.loadPlants();
@@ -87,7 +76,6 @@ class _SearchScreenState extends State<SearchScreen> {
       });
     }
   }
-
   // البحث بالاسم ثم تطبيق الفلاتر (المنطق داخل PlantService)
   List<Plant> get _results {
     final service = PlantService.instance;
@@ -99,7 +87,6 @@ class _SearchScreenState extends State<SearchScreen> {
       care: _care,
     );
   }
-
   void _resetFilters() {
     setState(() {
       _water = null;
@@ -107,7 +94,6 @@ class _SearchScreenState extends State<SearchScreen> {
       _care = null;
     });
   }
-
   // ---------- نصوص عربية للقيم ----------
   String _waterLabel(String v) {
     switch (v) {
@@ -121,7 +107,6 @@ class _SearchScreenState extends State<SearchScreen> {
         return v;
     }
   }
-
   String _careLabel(String v) {
     switch (v) {
       case 'Low':
@@ -134,7 +119,6 @@ class _SearchScreenState extends State<SearchScreen> {
         return v;
     }
   }
-
   String _toleranceLabel(String? v) {
     switch (v) {
       case 'High':
@@ -147,7 +131,6 @@ class _SearchScreenState extends State<SearchScreen> {
         return 'غير مصنّفة';
     }
   }
-
   // ==========================================
   // البناء
   // ==========================================
@@ -161,7 +144,6 @@ class _SearchScreenState extends State<SearchScreen> {
             final scaleX = constraints.maxWidth / 360;
             final scaleY = constraints.maxHeight / 800;
             final results = _results;
-
             Widget? message;
             if (_isLoading) {
               message = const Center(
@@ -179,7 +161,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 scaleX,
               );
             }
-
             return Padding(
               padding: EdgeInsets.symmetric(horizontal: 20 * scaleX),
               child: CustomScrollView(
@@ -190,7 +171,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   if (message != null)
                     SliverFillRemaining(
                       hasScrollBody: false,
-                      child: message!,
+                      child: message,
                     )
                   else
                     SliverList(
@@ -208,10 +189,8 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
   }
-
   Widget _header(double scaleX, double scaleY, int count) {
     final showCount = !_isLoading && _error == null && _allPlants.isNotEmpty;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -236,7 +215,6 @@ class _SearchScreenState extends State<SearchScreen> {
         SizedBox(height: 16 * scaleY),
         _searchField(scaleX, scaleY),
         SizedBox(height: 16 * scaleY),
-
         // زر تصفية النتائج (يفتح ورقة الفلاتر) + إعادة تعيين
         Row(
           textDirection: TextDirection.rtl,
@@ -322,7 +300,6 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
           ],
         ),
-
         // الفلاتر المفعّلة (تُمسح بعلامة ×)
         if (_hasFilters) ...[
           SizedBox(height: 10 * scaleY),
@@ -347,7 +324,6 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ],
         SizedBox(height: 14 * scaleY),
-
         // عداد النتائج
         if (showCount)
           Padding(
@@ -366,7 +342,6 @@ class _SearchScreenState extends State<SearchScreen> {
       ],
     );
   }
-
   Widget _searchField(double scaleX, double scaleY) {
     return SizedBox(
       height: 52 * scaleY,
@@ -399,7 +374,6 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
   }
-
   // وسم الفلتر المفعّل مع علامة ×
   Widget _activeChip(String label, VoidCallback onRemove, double scaleX) {
     return Padding(
@@ -436,13 +410,11 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
   }
-
   // ورقة الفلاتر (تطلع من تحت)
   void _openFilterSheet() {
     String? w = _water;
     String? t = _tolerance;
     String? c = _care;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -454,7 +426,6 @@ class _SearchScreenState extends State<SearchScreen> {
         return StatefulBuilder(
           builder: (context, setSheet) {
             final scaleX = MediaQuery.of(context).size.width / 360;
-
             return Directionality(
               textDirection: TextDirection.rtl,
               child: SafeArea(
@@ -572,7 +543,6 @@ class _SearchScreenState extends State<SearchScreen> {
       },
     );
   }
-
   // مجموعة خيارات داخل الورقة (اضغطي على المختار مرة ثانية لإلغائه)
   Widget _sheetGroup(
     String title,
@@ -631,7 +601,6 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
   }
-
   Widget _message(String text, double scaleX) {
     return Center(
       child: Padding(
@@ -649,7 +618,6 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
   }
-
   // وسم صغير داخل الكرت
   Widget _tag(IconData icon, String text, double scaleX) {
     return Container(
@@ -681,8 +649,26 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
   }
-
-  
+Widget _imageLoading() {
+  return const ColoredBox(
+    color: Color(0xFFE8F0E4),
+    child: Center(
+      child: SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(strokeWidth: 2, color: _green),
+      ),
+    ),
+  );
+}
+Widget _imageUnavailable(double scaleX) {
+  return ColoredBox(
+    color: const Color(0xFFE8F0E4),
+    child: Center(
+      child: Icon(Icons.eco_outlined, color: _green, size: 34 * scaleX),
+    ),
+  );
+}
 Widget _plantTile(Plant plant, double scaleX) {
   return InkWell(
     onTap: () {
@@ -708,18 +694,35 @@ Widget _plantTile(Plant plant, double scaleX) {
         textDirection: TextDirection.rtl,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // صورة مؤقتة إلى أن نربط صور Perenual بنتائج البحث.
-          Container(
+          SizedBox(
             width: 76 * scaleX,
             height: 76 * scaleX,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F0E4),
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.eco_outlined,
-              color: _green,
-              size: 34 * scaleX,
+              child: FutureBuilder<String?>(
+                future: PlantImageService.instance.imageFor(plant.scientificName),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return _imageLoading();
+                  }
+                  final url = snapshot.data;
+                  if (url == null || url.isEmpty) {
+                    return _imageUnavailable(scaleX);
+                  }
+                  return Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return _imageLoading();
+                    },
+                    errorBuilder: (context, error, stackTrace) =>
+                        _imageUnavailable(scaleX),
+                  );
+                },
+              ),
             ),
           ),
           SizedBox(width: 12 * scaleX),

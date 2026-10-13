@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/garden_profile.dart';
-import '../models/plant.dart';
 import '../services/garden_service.dart';
-import '../services/plant_service.dart';
 import '../services/location_service.dart';
 import '../services/geoapify_service.dart';
 import '../services/weather_service.dart';
@@ -17,9 +15,6 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
   GardenProfile? garden;
   bool isLoading = true;
   bool isCheckingLocation = false;
-  List<Plant> recommendedPlants = [];
-  bool isLoadingRecommendations = false;
-
   Map<String, dynamic>? weatherData;
   bool isLoadingWeather = false;
   String? weatherError;
@@ -41,7 +36,6 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       isLoading = false;
     });
     if (result != null) {
-      _loadRecommendations(result);
       _loadWeather(result);
     }
   }
@@ -51,7 +45,6 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
   Future<void> _loadWeather(GardenProfile g) async {
     final latitude = g.latitude;
     final longitude = g.longitude;
-
     if (latitude == null || longitude == null) {
       if (!mounted) return;
       setState(() {
@@ -61,30 +54,24 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       });
       return;
     }
-
     setState(() {
       isLoadingWeather = true;
       weatherError = null;
     });
-
     try {
       final result = await WeatherService.getCurrentWeather(
         latitude: latitude,
         longitude: longitude,
       );
-
       if (!mounted) return;
-
       setState(() {
         weatherData = result;
         weatherError = null;
       });
     } catch (e) {
       if (!mounted) return;
-
       var message = e.toString();
       message = message.replaceFirst('Exception: ', '');
-
       setState(() {
         weatherData = null;
         weatherError = message;
@@ -94,24 +81,6 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
         setState(() => isLoadingWeather = false);
       }
     }
-  }
-
-  // ============================================================
-  // تحميل النباتات الموصى بها
-  // ============================================================
-  Future<void> _loadRecommendations(
-    GardenProfile g,
-  ) async {
-    setState(
-      () => isLoadingRecommendations = true,
-    );
-    final result =
-        await PlantService.instance.recommendForGarden(g);
-    if (!mounted) return;
-    setState(() {
-      recommendedPlants = result;
-      isLoadingRecommendations = false;
-    });
   }
   // ============================================================
   // فتح صفحة إعداد / تعديل الحديقة
@@ -129,7 +98,6 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       );
       if (result != null && mounted) {
         setState(() => garden = result);
-        _loadRecommendations(result);
         _loadWeather(result);
       }
       return;
@@ -189,7 +157,6 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       );
       if (result != null && mounted) {
         setState(() => garden = result);
-        _loadRecommendations(result);
         _loadWeather(result);
       }
     } catch (e) {
@@ -472,7 +439,6 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
     String windSpeed = '-- كم/س';
     String daylightHours = '-- س';
     String statusText = 'جاري تحميل بيانات الطقس...';
-
     if (!isLoadingWeather && weatherData != null) {
       final temp = weatherData!['temperature'] as double?;
       final humidityValue = weatherData!['humidity'] as int?;
@@ -480,32 +446,26 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       final sunrise = weatherData!['sunrise'] as int?;
       final sunset = weatherData!['sunset'] as int?;
       final description = weatherData!['description']?.toString();
-
       if (temp != null) {
         temperature = '${temp.round()}°';
       }
-
       if (humidityValue != null) {
         humidity = '$humidityValue%';
       }
-
       if (wind != null) {
         final windKmh = wind * 3.6;
         windSpeed = '${windKmh.toStringAsFixed(1)} كم/س';
       }
-
       if (sunrise != null && sunset != null && sunset > sunrise) {
         final hours = (sunset - sunrise) / 3600;
         daylightHours = '${hours.toStringAsFixed(1)} س';
       }
-
       statusText = (description != null && description.isNotEmpty)
           ? description
           : 'تم تحديث بيانات الطقس';
     } else if (!isLoadingWeather && weatherError != null) {
       statusText = 'تعذر تحميل بيانات الطقس حالياً';
     }
-
     return Container(
       padding: EdgeInsets.all(18 * scaleX),
       decoration: BoxDecoration(
@@ -980,143 +940,61 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
         SizedBox(
           height: 12 * scaleY,
         ),
-        if (isLoadingRecommendations)
-          const Center(
-            child: Padding(
-              padding:
-                  EdgeInsets.symmetric(
-                vertical: 20,
-              ),
-              child:
-                  CircularProgressIndicator(
-                color:
-                    Color(0xFF315B32),
-              ),
+        Container(
+          padding:
+              EdgeInsets.all(
+            16 * scaleX,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius:
+                BorderRadius.circular(
+              14,
             ),
-          )
-        else
-          SizedBox(
-            height: 180 * scaleY,
-            child:
-                ListView.builder(
-              scrollDirection:
-                  Axis.horizontal,
-              reverse: true,
-              itemCount:
-                  recommendedPlants
-                      .length,
-              itemBuilder:
-                  (context, index) {
-                final plant =
-                    recommendedPlants[
-                        index];
-                return Padding(
-                  padding:
-                      EdgeInsets.only(
-                    left:
-                        12 * scaleX,
-                  ),
-                  child: _plantCard(
-                    plant,
-                    scaleX,
-                  ),
-                );
-              },
+            border: Border.all(
+              color: const Color(
+                0xFFDCE4D8,
+              ),
+              width: 1.2,
             ),
           ),
-      ],
-    );
-  }
-  Widget _plantCard(
-    Plant plant,
-    double scaleX,
-  ) {
-    return Container(
-      width: 140 * scaleX,
-      padding:
-          EdgeInsets.all(14 * scaleX),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(14),
-        border: Border.all(
-          color:
-              const Color(0xFFDCE4D8),
-          width: 1.2,
+          child: Row(
+            textDirection:
+                TextDirection.rtl,
+            children: [
+              Icon(
+                Icons
+                    .local_florist_outlined,
+                color: const Color(
+                  0xFF6F8F64,
+                ),
+                size: 26 * scaleX,
+              ),
+              SizedBox(
+                width: 12 * scaleX,
+              ),
+              Expanded(
+                child: Text(
+                  'لا توجد نباتات موصى بها حاليًا',
+                  textDirection:
+                      TextDirection.rtl,
+                  textAlign:
+                      TextAlign.right,
+                  style:
+                      GoogleFonts.cairo(
+                    color:
+                        const Color(
+                      0xFF7D8079,
+                    ),
+                    fontSize:
+                        13 * scaleX,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.end,
-        children: [
-          Container(
-            width: 36 * scaleX,
-            height: 36 * scaleX,
-            decoration:
-                BoxDecoration(
-              color: const Color(
-                0xFFE8F0E4,
-              ),
-              borderRadius:
-                  BorderRadius.circular(
-                10,
-              ),
-            ),
-            child: Icon(
-              Icons.eco_outlined,
-              color: const Color(
-                0xFF315B32,
-              ),
-              size: 20 * scaleX,
-            ),
-          ),
-          SizedBox(
-            height: 10 * scaleX,
-          ),
-          Text(
-            plant.arabicName,
-            textDirection:
-                TextDirection.rtl,
-            textAlign:
-                TextAlign.right,
-            maxLines: 1,
-            overflow:
-                TextOverflow.ellipsis,
-            style:
-                GoogleFonts.cairo(
-              color: const Color(
-                0xFF292D28,
-              ),
-              fontSize:
-                  13 * scaleX,
-              fontWeight:
-                  FontWeight.w700,
-            ),
-          ),
-          SizedBox(
-            height: 4 * scaleX,
-          ),
-          Text(
-            plant.shortHint,
-            textDirection:
-                TextDirection.rtl,
-            textAlign:
-                TextAlign.right,
-            maxLines: 2,
-            overflow:
-                TextOverflow.ellipsis,
-            style:
-                GoogleFonts.cairo(
-              color: const Color(
-                0xFF7D8079,
-              ),
-              fontSize:
-                  11 * scaleX,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
