@@ -723,13 +723,15 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
                 'مستوى العناية',
                 g.careLevel
                     .arabicLabel,
+                null,
                 scaleX,
               ),
               _gardenDataColumn(
                 Icons
                     .square_foot_outlined,
-                'أبعاد مساحة الزراعة',
-                '${_fmt(g.widthMeters)}×${_fmt(g.lengthMeters)} م',
+                'مساحة الزراعة',
+                '${_fmt(g.lengthMeters * g.widthMeters)} م²',
+                null,
                 scaleX,
               ),
               _gardenDataColumn(
@@ -738,6 +740,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
                 'اتجاه الواجهة',
                 g.facadeDirection
                     .arabicLabel,
+                null,
                 scaleX,
               ),
             ],
@@ -750,6 +753,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
     IconData icon,
     String label,
     String value,
+    String? areaValue,
     double scaleX,
   ) {
     return Expanded(
@@ -796,6 +800,17 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
                   FontWeight.w700,
             ),
           ),
+          if (areaValue != null)
+            Text(
+              areaValue,
+              textAlign: TextAlign.center,
+              textDirection: TextDirection.rtl,
+              style: GoogleFonts.cairo(
+                color: const Color(0xFF315B32),
+                fontSize: 12 * scaleX,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           SizedBox(
             height: 2 * scaleX,
           ),

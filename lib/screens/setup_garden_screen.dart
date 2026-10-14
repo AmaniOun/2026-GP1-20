@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../models/garden_profile.dart';
 import '../services/garden_service.dart';
-
 // ==========================================
 // شاشة إعداد / تعديل الحديقة
 //
@@ -16,27 +14,21 @@ import '../services/garden_service.dart';
 // عند إنشاء حديقة جديدة، تستقبل الشاشة
 // بيانات الموقع بعد التحقق منها في My Garden.
 // ==========================================
-
 class SetupGardenScreen extends StatefulWidget {
   final GardenProfile? existingGarden;
-
   // ========================================
   // بيانات الموقع المتحقق منها
   // ========================================
   final double? latitude;
   final double? longitude;
-
   final String? city;
   final String? state;
   final String? country;
   final String? formattedAddress;
-
   final bool locationVerified;
-
   const SetupGardenScreen({
     super.key,
     this.existingGarden,
-
     // بيانات الموقع
     this.latitude,
     this.longitude,
@@ -46,73 +38,56 @@ class SetupGardenScreen extends StatefulWidget {
     this.formattedAddress,
     this.locationVerified = false,
   });
-
   @override
   State<SetupGardenScreen> createState() =>
       _SetupGardenScreenState();
 }
-
 class _SetupGardenScreenState
     extends State<SetupGardenScreen> {
   FacadeDirection? selectedDirection;
   CareLevel? selectedCareLevel;
-
   final lengthController = TextEditingController();
   final widthController = TextEditingController();
-
   bool isSaving = false;
-
   bool get isEditMode =>
       widget.existingGarden != null;
-
   @override
   void initState() {
     super.initState();
-
     final existing = widget.existingGarden;
-
     if (existing != null) {
       selectedDirection =
           existing.facadeDirection;
-
       selectedCareLevel =
           existing.careLevel;
-
       lengthController.text =
           _formatNumber(
         existing.lengthMeters,
       );
-
       widthController.text =
           _formatNumber(
         existing.widthMeters,
       );
     }
   }
-
   String _formatNumber(double value) {
     if (value == value.roundToDouble()) {
       return value.toInt().toString();
     }
-
     return value.toString();
   }
-
   @override
   void dispose() {
     lengthController.dispose();
     widthController.dispose();
-
     super.dispose();
   }
-
   // ========================================
   // إظهار رسالة للمستخدم
   // ========================================
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
         .hideCurrentSnackBar();
-
     ScaffoldMessenger.of(context)
         .showSnackBar(
       SnackBar(
@@ -129,13 +104,6 @@ class _SetupGardenScreenState
       ),
     );
   }
-
-  // ========================================
-  // حدود منطقية لأبعاد مساحة الزراعة
-  // ========================================
-  static const double _minDimension = 0.5;
-  static const double _maxDimension = 500;
-
   // ========================================
   // حفظ الحديقة
   // ========================================
@@ -147,34 +115,26 @@ class _SetupGardenScreenState
       _showMessage(
         'يرجى تحديد اتجاه واجهة الحديقة',
       );
-
       return;
     }
-
     // --------------------------------------
     // قراءة الطول والعرض
     // --------------------------------------
     final lengthText =
         lengthController.text.trim();
-
     final widthText =
         widthController.text.trim();
-
     if (lengthText.isEmpty ||
         widthText.isEmpty) {
       _showMessage(
         'يرجى إدخال طول وعرض مساحة الزراعة',
       );
-
       return;
     }
-
     final length =
         double.tryParse(lengthText);
-
     final width =
         double.tryParse(widthText);
-
     // --------------------------------------
     // التحقق من الطول
     // --------------------------------------
@@ -182,10 +142,8 @@ class _SetupGardenScreenState
       _showMessage(
         'قيمة الطول غير صحيحة، يرجى إدخال رقم فقط',
       );
-
       return;
     }
-
     // --------------------------------------
     // التحقق من العرض
     // --------------------------------------
@@ -193,48 +151,20 @@ class _SetupGardenScreenState
       _showMessage(
         'قيمة العرض غير صحيحة، يرجى إدخال رقم فقط',
       );
-
       return;
     }
-
-    if (length <= 0) {
+    if (!length.isFinite || length <= 0) {
       _showMessage(
         'يجب أن تكون قيمة الطول أكبر من صفر',
       );
-
       return;
     }
-
-    if (width <= 0) {
+    if (!width.isFinite || width <= 0) {
       _showMessage(
         'يجب أن تكون قيمة العرض أكبر من صفر',
       );
-
       return;
     }
-
-    if (length < _minDimension ||
-        length > _maxDimension) {
-      _showMessage(
-        'قيمة الطول يجب أن تكون بين '
-        '${_minDimension.toInt()} و '
-        '${_maxDimension.toInt()} متر',
-      );
-
-      return;
-    }
-
-    if (width < _minDimension ||
-        width > _maxDimension) {
-      _showMessage(
-        'قيمة العرض يجب أن تكون بين '
-        '${_minDimension.toInt()} و '
-        '${_maxDimension.toInt()} متر',
-      );
-
-      return;
-    }
-
     // --------------------------------------
     // مستوى العناية
     // --------------------------------------
@@ -242,12 +172,12 @@ class _SetupGardenScreenState
       _showMessage(
         'يرجى تحديد مستوى العناية المفضل',
       );
-
       return;
     }
-
+    // عرض الأبعاد والمساحة للتأكيد قبل حفظ البيانات.
+    final confirmed = await _confirmGardenArea(length, width);
+    if (!mounted || !confirmed) return;
     setState(() => isSaving = true);
-
     // ======================================
     // تحديد بيانات الموقع التي سيتم حفظها
     //
@@ -258,87 +188,66 @@ class _SetupGardenScreenState
     // نستخدم الموقع الذي تم التحقق منه
     // قبل فتح هذه الشاشة.
     // ======================================
-
     final existing =
         widget.existingGarden;
-
     final double? latitude =
         isEditMode
             ? existing!.latitude
             : widget.latitude;
-
     final double? longitude =
         isEditMode
             ? existing!.longitude
             : widget.longitude;
-
     final String? city =
         isEditMode
             ? existing!.city
             : widget.city;
-
     final String? state =
         isEditMode
             ? existing!.state
             : widget.state;
-
     final String? country =
         isEditMode
             ? existing!.country
             : widget.country;
-
     final String? formattedAddress =
         isEditMode
             ? existing!.formattedAddress
             : widget.formattedAddress;
-
     final bool locationVerified =
         isEditMode
             ? existing!.locationVerified
             : widget.locationVerified;
-
     // ======================================
     // إنشاء Garden Profile
     // ======================================
     final garden = GardenProfile(
       facadeDirection:
           selectedDirection!,
-
       lengthMeters:
           length,
-
       widthMeters:
           width,
-
       careLevel:
           selectedCareLevel!,
-
       // بيانات الموقع
       latitude:
           latitude,
-
       longitude:
           longitude,
-
       city:
           city,
-
       state:
           state,
-
       country:
           country,
-
       formattedAddress:
           formattedAddress,
-
       locationVerified:
           locationVerified,
-
       updatedAt:
           DateTime.now(),
     );
-
     // ======================================
     // حفظ / تحديث
     // ======================================
@@ -349,20 +258,113 @@ class _SetupGardenScreenState
       await GardenService.instance
           .saveGarden(garden);
     }
-
     if (!mounted) return;
-
     setState(() => isSaving = false);
-
     _showMessage(
       isEditMode
           ? 'تم تحديث بيانات الحديقة'
           : 'تم حفظ بيانات الحديقة',
     );
-
     Navigator.pop(context, garden);
   }
-
+  Future<bool> _confirmGardenArea(double length, double width) async {
+    final area = length * width;
+    if (!area.isFinite || area <= 0) {
+      _showMessage('المساحة المحسوبة غير صالحة، يرجى تعديل الأبعاد');
+      return false;
+    }
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: !isSaving,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFFFAF9F4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'تأكيد مساحة الزراعة',
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.right,
+          style: GoogleFonts.cairo(
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF234525),
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _areaValue('العرض', '${_formatNumber(width)} م'),
+                ),
+                Expanded(
+                  child: _areaValue('الطول', '${_formatNumber(length)} م'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _areaValue('المساحة المحسوبة', '${_formatNumber(area)} م²'),
+            const SizedBox(height: 20),
+            Text(
+              'هل هذه الأبعاد تمثل المساحة المتاحة للزراعة في حديقتك؟',
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.cairo(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
+        actions: [
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF315B32),
+              backgroundColor: const Color(0xFFE8F0E4),
+              side: const BorderSide(color: Color(0xFF315B32), width: 1.5),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: Text(
+              'تعديل الأبعاد',
+              style: GoogleFonts.cairo(fontWeight: FontWeight.w700),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF315B32),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text('تأكيد وحفظ', style: GoogleFonts.cairo()),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+  Widget _areaValue(String label, String value) {
+    return Column(
+      children: [
+        Text(label,
+          textDirection: TextDirection.rtl,
+          style: GoogleFonts.cairo(color: const Color(0xFF7D8079)),
+        ),
+        Text(value,
+          textDirection: TextDirection.rtl,
+          style: GoogleFonts.cairo(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF234525),
+          ),
+        ),
+      ],
+    );
+  }
   // ========================================
   // واجهة الشاشة
   // ========================================
@@ -372,26 +374,20 @@ class _SetupGardenScreenState
       backgroundColor:
           const Color(0xFFFAF9F4),
       resizeToAvoidBottomInset: true,
-
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width =
                 constraints.maxWidth;
-
             final height =
                 constraints.maxHeight;
-
             final scaleX =
                 width / 360;
-
             final scaleY =
                 height / 800;
-
             return SingleChildScrollView(
               physics:
                   const ClampingScrollPhysics(),
-
               padding:
                   EdgeInsets.symmetric(
                 horizontal:
@@ -399,11 +395,9 @@ class _SetupGardenScreenState
                 vertical:
                     18 * scaleY,
               ),
-
               child: Column(
                 crossAxisAlignment:
                     CrossAxisAlignment.stretch,
-
                 children: [
                   // ==================================
                   // زر الرجوع
@@ -411,19 +405,15 @@ class _SetupGardenScreenState
                   Align(
                     alignment:
                         Alignment.centerLeft,
-
                     child: IconButton(
                       onPressed: () =>
                           Navigator.pop(
                         context,
                       ),
-
                       padding:
                           EdgeInsets.zero,
-
                       constraints:
                           const BoxConstraints(),
-
                       icon: Icon(
                         Icons.arrow_back,
                         color:
@@ -435,12 +425,10 @@ class _SetupGardenScreenState
                       ),
                     ),
                   ),
-
                   SizedBox(
                     height:
                         10 * scaleY,
                   ),
-
                   // ==================================
                   // العنوان
                   // ==================================
@@ -448,13 +436,10 @@ class _SetupGardenScreenState
                     isEditMode
                         ? 'تعديل بيانات الحديقة'
                         : 'إعداد حديقتي',
-
                     textDirection:
                         TextDirection.rtl,
-
                     textAlign:
                         TextAlign.right,
-
                     style:
                         GoogleFonts.cairo(
                       color:
@@ -467,21 +452,16 @@ class _SetupGardenScreenState
                           FontWeight.w700,
                     ),
                   ),
-
                   SizedBox(
                     height:
                         5 * scaleY,
                   ),
-
                   Text(
                     'هذه المعلومات تساعد رُوى يرشح لك نباتات تناسب حديقتك',
-
                     textDirection:
                         TextDirection.rtl,
-
                     textAlign:
                         TextAlign.right,
-
                     style:
                         GoogleFonts.cairo(
                       color:
@@ -495,12 +475,10 @@ class _SetupGardenScreenState
                       height: 1.5,
                     ),
                   ),
-
                   SizedBox(
                     height:
                         24 * scaleY,
                   ),
-
                   // ==================================
                   // اتجاه واجهة الحديقة
                   // ==================================
@@ -508,22 +486,17 @@ class _SetupGardenScreenState
                     'اتجاه واجهة الحديقة',
                     scaleX,
                   ),
-
                   SizedBox(
                     height:
                         10 * scaleY,
                   ),
-
                   Wrap(
                     alignment:
                         WrapAlignment.end,
-
                     spacing:
                         10 * scaleX,
-
                     runSpacing:
                         10 * scaleY,
-
                     children:
                         FacadeDirection
                             .values
@@ -532,18 +505,14 @@ class _SetupGardenScreenState
                         final isSelected =
                             selectedDirection ==
                                 direction;
-
                         return _choiceChip(
                           label:
                               direction
                                   .arabicLabel,
-
                           selected:
                               isSelected,
-
                           scaleX:
                               scaleX,
-
                           onTap: () {
                             setState(
                               () =>
@@ -555,12 +524,10 @@ class _SetupGardenScreenState
                       },
                     ).toList(),
                   ),
-
                   SizedBox(
                     height:
                         24 * scaleY,
                   ),
-
                   // ==================================
                   // مساحة الزراعة
                   // ==================================
@@ -568,12 +535,10 @@ class _SetupGardenScreenState
                     'مساحة الزراعة المتاحة (بالمتر)',
                     scaleX,
                   ),
-
                   SizedBox(
                     height:
                         10 * scaleY,
                   ),
-
                   Row(
                     children: [
                       Expanded(
@@ -589,12 +554,10 @@ class _SetupGardenScreenState
                               scaleY,
                         ),
                       ),
-
                       SizedBox(
                         width:
                             12 * scaleX,
                       ),
-
                       Expanded(
                         child:
                             _numberField(
@@ -610,12 +573,10 @@ class _SetupGardenScreenState
                       ),
                     ],
                   ),
-
                   SizedBox(
                     height:
                         24 * scaleY,
                   ),
-
                   // ==================================
                   // مستوى العناية
                   // ==================================
@@ -623,40 +584,31 @@ class _SetupGardenScreenState
                     'مستوى العناية المفضل',
                     scaleX,
                   ),
-
                   SizedBox(
                     height:
                         10 * scaleY,
                   ),
-
                   Wrap(
                     alignment:
                         WrapAlignment.end,
-
                     spacing:
                         10 * scaleX,
-
                     runSpacing:
                         10 * scaleY,
-
                     children:
                         CareLevel.values.map(
                       (level) {
                         final isSelected =
                             selectedCareLevel ==
                                 level;
-
                         return _choiceChip(
                           label:
                               level
                                   .arabicLabel,
-
                           selected:
                               isSelected,
-
                           scaleX:
                               scaleX,
-
                           onTap: () {
                             setState(
                               () =>
@@ -668,33 +620,28 @@ class _SetupGardenScreenState
                       },
                     ).toList(),
                   ),
-
                   SizedBox(
                     height:
                         32 * scaleY,
                   ),
-
                   // ==================================
                   // زر الحفظ
                   // ==================================
                   SizedBox(
                     height:
                         52 * scaleY,
-
                     child:
                         ElevatedButton(
                       onPressed:
                           isSaving
                               ? null
                               : _saveGarden,
-
                       style:
                           ButtonStyle(
                         elevation:
                             const WidgetStatePropertyAll(
                           0,
                         ),
-
                         backgroundColor:
                             WidgetStateProperty
                                 .resolveWith<
@@ -709,7 +656,6 @@ class _SetupGardenScreenState
                                 0xFF234525,
                               );
                             }
-
                             if (states
                                 .contains(
                               WidgetState
@@ -719,18 +665,15 @@ class _SetupGardenScreenState
                                 0xFF3D6A3E,
                               );
                             }
-
                             return const Color(
                               0xFF315B32,
                             );
                           },
                         ),
-
                         foregroundColor:
                             const WidgetStatePropertyAll(
                           Colors.white,
                         ),
-
                         shape:
                             WidgetStatePropertyAll(
                           RoundedRectangleBorder(
@@ -742,7 +685,6 @@ class _SetupGardenScreenState
                           ),
                         ),
                       ),
-
                       child:
                           isSaving
                               ? SizedBox(
@@ -764,11 +706,9 @@ class _SetupGardenScreenState
                                   isEditMode
                                       ? 'حفظ التعديلات'
                                       : 'حفظ الحديقة',
-
                                   textDirection:
                                       TextDirection
                                           .rtl,
-
                                   style:
                                       GoogleFonts
                                           .cairo(
@@ -782,7 +722,6 @@ class _SetupGardenScreenState
                                 ),
                     ),
                   ),
-
                   SizedBox(
                     height:
                         20 * scaleY,
@@ -795,7 +734,6 @@ class _SetupGardenScreenState
       ),
     );
   }
-
   // ========================================
   // عنوان القسم
   // ========================================
@@ -809,7 +747,6 @@ class _SetupGardenScreenState
           TextDirection.rtl,
       textAlign:
           TextAlign.right,
-
       style: GoogleFonts.cairo(
         color:
             const Color(0xFF292D28),
@@ -820,7 +757,6 @@ class _SetupGardenScreenState
       ),
     );
   }
-
   // ========================================
   // Choice Chip
   // ========================================
@@ -832,13 +768,11 @@ class _SetupGardenScreenState
   }) {
     return GestureDetector(
       onTap: onTap,
-
       child: AnimatedContainer(
         duration:
             const Duration(
           milliseconds: 150,
         ),
-
         padding:
             EdgeInsets.symmetric(
           horizontal:
@@ -846,7 +780,6 @@ class _SetupGardenScreenState
           vertical:
               10 * scaleX,
         ),
-
         decoration:
             BoxDecoration(
           color:
@@ -855,12 +788,10 @@ class _SetupGardenScreenState
                       0xFF315B32,
                     )
                   : Colors.white,
-
           borderRadius:
               BorderRadius.circular(
             30,
           ),
-
           border: Border.all(
             color:
                 selected
@@ -873,13 +804,10 @@ class _SetupGardenScreenState
             width: 1.3,
           ),
         ),
-
         child: Text(
           label,
-
           textDirection:
               TextDirection.rtl,
-
           style:
               GoogleFonts.cairo(
             color:
@@ -888,10 +816,8 @@ class _SetupGardenScreenState
                     : const Color(
                         0xFF292D28,
                       ),
-
             fontSize:
                 13 * scaleX,
-
             fontWeight:
                 FontWeight.w600,
           ),
@@ -899,7 +825,6 @@ class _SetupGardenScreenState
       ),
     );
   }
-
   // ========================================
   // حقل رقم
   // ========================================
@@ -913,23 +838,18 @@ class _SetupGardenScreenState
     return SizedBox(
       height:
           52 * scaleY,
-
       child: TextField(
         controller:
             controller,
-
         keyboardType:
             const TextInputType
                 .numberWithOptions(
           decimal: true,
         ),
-
         textDirection:
             TextDirection.rtl,
-
         textAlign:
             TextAlign.right,
-
         style:
             GoogleFonts.cairo(
           color:
@@ -939,15 +859,12 @@ class _SetupGardenScreenState
           fontSize:
               13 * scaleX,
         ),
-
         decoration:
             InputDecoration(
           hintText:
               hint,
-
           hintTextDirection:
               TextDirection.rtl,
-
           hintStyle:
               GoogleFonts.cairo(
             color:
@@ -957,10 +874,8 @@ class _SetupGardenScreenState
             fontSize:
                 13 * scaleX,
           ),
-
           suffixText:
               'م',
-
           suffixStyle:
               GoogleFonts.cairo(
             color:
@@ -970,19 +885,15 @@ class _SetupGardenScreenState
             fontSize:
                 12 * scaleX,
           ),
-
           filled:
               true,
-
           fillColor:
               Colors.white,
-
           contentPadding:
               EdgeInsets.symmetric(
             horizontal:
                 16 * scaleX,
           ),
-
           enabledBorder:
               OutlineInputBorder(
             borderRadius:
@@ -999,7 +910,6 @@ class _SetupGardenScreenState
                   1.3,
             ),
           ),
-
           focusedBorder:
               OutlineInputBorder(
             borderRadius:
