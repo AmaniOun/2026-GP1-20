@@ -601,12 +601,10 @@ class _SetupGardenScreenState
                         final isSelected =
                             selectedCareLevel ==
                                 level;
-                        return _choiceChip(
-                          label:
-                              level
-                                  .arabicLabel,
-                          selected:
-                              isSelected,
+                      return _choiceChip(
+                         label: level.arabicLabel,
+                         tooltip: _careDescription(level),
+                          selected: isSelected,
                           scaleX:
                               scaleX,
                           onTap: () {
@@ -760,68 +758,75 @@ class _SetupGardenScreenState
   // ========================================
   // Choice Chip
   // ========================================
+
+    String _careDescription(CareLevel level) {
+    switch (level) {
+      case CareLevel.low:
+        return 'نباتات  تحتاج إلى جهد ومتابعة وري  قليل';
+       case CareLevel.medium:
+        return 'نباتات تحتاج إلى جهد ومتابعة وري معتدل';
+      case CareLevel.high:
+        return 'نباتات تحتاج إلى جهد ومتابعة وري أكبر';
+    }
+  }
   Widget _choiceChip({
     required String label,
     required bool selected,
     required double scaleX,
     required VoidCallback onTap,
+    String? tooltip,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration:
-            const Duration(
-          milliseconds: 150,
+    final chip = AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: EdgeInsets.symmetric(
+        horizontal: 18 * scaleX,
+        vertical: 10 * scaleX,
+      ),
+      decoration: BoxDecoration(
+        color: selected ? const Color(0xFF315B32) : Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: selected ? const Color(0xFF315B32) : const Color(0xFFDCE4D8),
+          width: 1.3,
         ),
-        padding:
-            EdgeInsets.symmetric(
-          horizontal:
-              18 * scaleX,
-          vertical:
-              10 * scaleX,
+      ),
+      child: Text(
+        label,
+        textDirection: TextDirection.rtl,
+        style: GoogleFonts.cairo(
+          color: selected ? Colors.white : const Color(0xFF292D28),
+          fontSize: 13 * scaleX,
+          fontWeight: FontWeight.w600,
         ),
-        decoration:
-            BoxDecoration(
-          color:
-              selected
-                  ? const Color(
-                      0xFF315B32,
-                    )
-                  : Colors.white,
-          borderRadius:
-              BorderRadius.circular(
-            30,
-          ),
-          border: Border.all(
-            color:
-                selected
-                    ? const Color(
-                        0xFF315B32,
-                      )
-                    : const Color(
-                        0xFFDCE4D8,
-                      ),
-            width: 1.3,
-          ),
-        ),
-        child: Text(
-          label,
-          textDirection:
-              TextDirection.rtl,
-          style:
-              GoogleFonts.cairo(
-            color:
-                selected
-                    ? Colors.white
-                    : const Color(
-                        0xFF292D28,
-                      ),
-            fontSize:
-                13 * scaleX,
-            fontWeight:
-                FontWeight.w600,
-          ),
-        ),
+      ),
+    );
+
+    if (tooltip == null) {
+      return GestureDetector(onTap: onTap, child: chip);
+    }
+
+    return Tooltip(
+      message: tooltip,
+      triggerMode: TooltipTriggerMode.tap,
+      textAlign: TextAlign.right,
+      preferBelow: false,
+      verticalOffset: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      showDuration: const Duration(seconds: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF315B32),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      textStyle: GoogleFonts.cairo(
+        color: Colors.white,
+        fontSize: 13,
+        height: 1.6,
+      ),
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerUp: (_) => onTap(),
+        child: chip,
       ),
     );
   }
