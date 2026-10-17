@@ -347,7 +347,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
             ),
             SizedBox(height: 16 * scaleY),
             Text(
-              'ما أعددتي بيانات حديقتك بعد',
+              'لم يتم إعداد بيانات حديقتك بعد',
               textDirection: TextDirection.rtl,
               textAlign: TextAlign.center,
               style: GoogleFonts.cairo(
@@ -358,7 +358,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
             ),
             SizedBox(height: 6 * scaleY),
             Text(
-              'أضيفي اتجاه الواجهة ومساحة الزراعة لتحصلي على توصيات مناسبة',
+              'أضف اتجاه الواجهة ومساحة الزراعة للحصول على توصيات مناسبة',
               textDirection: TextDirection.rtl,
               textAlign: TextAlign.center,
               style: GoogleFonts.cairo(

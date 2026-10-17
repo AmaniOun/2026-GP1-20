@@ -596,14 +596,12 @@ class _SetupGardenScreenState
                     runSpacing:
                         10 * scaleY,
                     children:
-                        CareLevel.values.map(
-                      (level) {
+CareLevel.values.reversed.map(                      (level) {
                         final isSelected =
                             selectedCareLevel ==
                                 level;
                       return _choiceChip(
                          label: level.arabicLabel,
-                         tooltip: _careDescription(level),
                           selected: isSelected,
                           scaleX:
                               scaleX,
@@ -617,6 +615,27 @@ class _SetupGardenScreenState
                         );
                       },
                     ).toList(),
+                  ),
+                  SizedBox(height: 14 * scaleY),
+                  // وصف مستوى العناية المختار
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(14 * scaleX),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF1E6),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      selectedCareLevel == null
+                          ? 'اختر مستوى العناية لعرض وصفه.'
+                          : _careDescription(selectedCareLevel!),
+                      textDirection: TextDirection.rtl,
+                      style: GoogleFonts.cairo(
+                        color: const Color(0xFF292D28),
+                        fontSize: 13 * scaleX,
+                        height: 1.6,
+                      ),
+                    ),
                   ),
                   SizedBox(
                     height:
