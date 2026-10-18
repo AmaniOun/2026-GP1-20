@@ -4,6 +4,7 @@ import '../models/plant.dart';
 import '../services/perenual_service.dart';
 import '../services/plant_translation_service.dart';
 import '../services/plant_image_service.dart';
+import '../utils/plant_display_formatter.dart';
 class PlantDetailsScreen extends StatefulWidget {
   final Plant plant;
   const PlantDetailsScreen({
@@ -47,25 +48,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
       return [];
     }
   }
-  String _translateLevel(String value) {
-  switch (value.trim().toLowerCase()) {
-    case 'low':
-      return 'منخفض';
-    case 'moderate':
-    case 'medium':
-      return 'متوسط';
-    case 'high':
-      return 'مرتفع';
-    case 'highly tolerant':
-      return 'عالي التحمل';
-    case 'moderately tolerant':
-      return 'متوسط التحمل';
-    case 'poorly tolerant':
-      return 'ضعيف التحمل';
-    default:
-      return value;
-  }
-}
   String _translateLight(String value) {
     switch (value.toLowerCase()) {
       case 'full sun':
@@ -91,6 +73,25 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
         return value;
     }
   }
+  // تعريب فاصل المدى القادم من قاعدة البيانات دون تغيير القيمة الأصلية.
+  String _arabicRange(String value) {
+    return value
+        .replaceAll(RegExp(r'\bto\b', caseSensitive: false), 'إلى')
+        .replaceAll(RegExp(r'\bm\b', caseSensitive: false), 'م');
+  }
+
+  // عزل كل درجة باتجاه LTR يبقي الأرقام ووحدة °C سليمة داخل واجهة RTL.
+  String _temperatureRange(Plant plant) {
+    final min = plant.minTemperatureC;
+    final max = plant.maxTemperatureC;
+    if (min != null && max != null) {
+      return '\u2066$min°C\u2069 إلى \u2066$max°C\u2069';
+    }
+    if (min != null) return '\u2066$min°C\u2069';
+    if (max != null) return '\u2066$max°C\u2069';
+    return '';
+  }
+
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -321,9 +322,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                 _requirementCard(
                   icon: Icons.water_drop_outlined,
                   label: 'احتياج الري',
-                  value: _translateLevel(
-                    plant.wateringRequirement,
-                  ),
+                  value: PlantDisplayFormatter.water(plant.wateringRequirement),
                 ),
                 const SizedBox(height: 10),
                 _requirementCard(
@@ -337,16 +336,14 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                 _requirementCard(
                   icon: Icons.spa_outlined,
                   label: 'مستوى العناية',
-                  value: _translateLevel(plant.careLevel),
+                  value: PlantDisplayFormatter.care(plant.careLevel),
                 ),
                 if (plant.climateToleranceClass != null) ...[
                   const SizedBox(height: 10),
                   _requirementCard(
                     icon: Icons.thermostat_outlined,
                     label: 'تحمل المناخ',
-                    value: _translateLevel(
-                      plant.climateToleranceClass!,
-                    ),
+                    value: PlantDisplayFormatter.tolerance(plant.climateToleranceClass),
                   ),
                 ],
                 if (plant.matureHeight != null ||
@@ -359,14 +356,14 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                     _requirementCard(
                       icon: Icons.height,
                       label: 'الارتفاع عند النضج',
-                      value: plant.matureHeight!,
+                      value: _arabicRange(plant.matureHeight!),
                     ),
                   if (plant.matureSpread != null) ...[
                     const SizedBox(height: 10),
                     _requirementCard(
                       icon: Icons.open_in_full,
                       label: 'الانتشار عند النضج',
-                      value: plant.matureSpread!,
+                      value: _arabicRange(plant.matureSpread!),
                     ),
                   ],
                   if (plant.minTemperatureC != null ||
@@ -375,12 +372,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                     _requirementCard(
                       icon: Icons.device_thermostat,
                       label: 'درجات الحرارة',
-                      value: [
-                        if (plant.minTemperatureC != null)
-                          '${plant.minTemperatureC}°C',
-                        if (plant.maxTemperatureC != null)
-                          '${plant.maxTemperatureC}°C',
-                      ].join(' – '),
+                      value: _temperatureRange(plant),
                     ),
                   ],
                 ],

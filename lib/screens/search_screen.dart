@@ -4,6 +4,7 @@ import 'plant_details_screen.dart';
 import '../models/plant.dart';
 import '../services/plant_service.dart';
 import '../services/plant_image_service.dart';
+import '../utils/plant_display_formatter.dart';
 // ==========================================
 // شاشة البحث عن النباتات
 //
@@ -41,10 +42,10 @@ class _SearchScreenState extends State<SearchScreen> {
     'High': 'ري مرتفع',
   };
   static const _toleranceOptions = {
-    'High': 'تحمل عالٍ',
-    'Moderate': 'تحمل متوسط',
-    'Low': 'تحمل ضعيف',
-  };
+  'Low': 'تحمل ضعيف',
+  'Moderate': 'تحمل متوسط',
+  'High': 'تحمل عالٍ',
+};
   static const _careOptions = {
     'Low': 'عناية قليلة',
     'Moderate': 'عناية متوسطة',
@@ -93,43 +94,6 @@ class _SearchScreenState extends State<SearchScreen> {
       _tolerance = null;
       _care = null;
     });
-  }
-  // ---------- نصوص عربية للقيم ----------
-  String _waterLabel(String v) {
-    switch (v) {
-      case 'Low':
-        return 'ري منخفض';
-      case 'Moderate':
-        return 'ري متوسط';
-      case 'High':
-        return 'ري مرتفع';
-      default:
-        return v;
-    }
-  }
-  String _careLabel(String v) {
-    switch (v) {
-      case 'Low':
-        return 'عناية قليلة';
-      case 'Moderate':
-        return 'عناية متوسطة';
-      case 'High':
-        return 'عناية عالية';
-      default:
-        return v;
-    }
-  }
-  String _toleranceLabel(String? v) {
-    switch (v) {
-      case 'High':
-        return 'تحمل عالٍ';
-      case 'Moderate':
-        return 'تحمل متوسط';
-      case 'Low':
-        return 'تحمل ضعيف';
-      default:
-        return 'غير مصنّفة';
-    }
   }
   // ==========================================
   // البناء
@@ -762,19 +726,19 @@ Widget _plantTile(Plant plant, double scaleX) {
                       children: [
                         _tag(
                           Icons.water_drop_outlined,
-                          _waterLabel(plant.wateringRequirement),
+                          PlantDisplayFormatter.waterTag(plant.wateringRequirement),
                           scaleX,
                         ),
                         SizedBox(width: 6 * scaleX),
                         _tag(
                           Icons.spa_outlined,
-                          _careLabel(plant.careLevel),
+                          PlantDisplayFormatter.careTag(plant.careLevel),
                           scaleX,
                         ),
                         SizedBox(width: 6 * scaleX),
                         _tag(
                           Icons.thermostat_outlined,
-                          _toleranceLabel(plant.climateToleranceClass),
+                          PlantDisplayFormatter.toleranceTag(plant.climateToleranceClass),
                           scaleX,
                         ),
                       ],
