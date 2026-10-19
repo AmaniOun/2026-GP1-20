@@ -1,83 +1,100 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../models/weather_data.dart';
+import '../models/weather_condition.dart';
 
 class WeatherService {
-  // حطي مفتاح OpenWeather الخاص بك هنا
   static const String apiKey = '978973628536cf1ab443f9bc23760549';
 
-  static Future<Map<String, dynamic>> getCurrentWeather({
+  static Future<WeatherData> getCurrentWeather({
     required double latitude,
     required double longitude,
   }) async {
-    final Uri url = Uri.parse(
-      'https://api.openweathermap.org/data/2.5/weather'
-      '?lat=$latitude'
-      '&lon=$longitude'
-      '&appid=$apiKey'
-      '&units=metric'
-      '&lang=ar',
-    );
+    final url = Uri.https(
+      'api.openweathermap.org', '/data/3.0/onecall', {
+      'lat': latitude.toString(),
+      'lon': longitude.toString(),
+      'appid': apiKey,
+      'units': 'metric',
+      'lang': 'ar',
+      'exclude': 'minutely,hourly,daily',
+    });
 
     try {
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data =
-            jsonDecode(response.body);
-
-        final main = data['main'] as Map<String, dynamic>?;
-        final wind = data['wind'] as Map<String, dynamic>?;
-        final sys = data['sys'] as Map<String, dynamic>?;
-
-        final weatherList = data['weather'] as List<dynamic>?;
-
-        return {
-          'temperature':
-              (main?['temp'] as num?)?.toDouble(),
-
-          'feelsLike':
-              (main?['feels_like'] as num?)?.toDouble(),
-
-          'humidity':
-              (main?['humidity'] as num?)?.toInt(),
-
-          'windSpeed':
-              (wind?['speed'] as num?)?.toDouble(),
-
-          'description':
-              weatherList != null && weatherList.isNotEmpty
-                  ? weatherList[0]['description']
-                  : null,
-
-          'icon':
-              weatherList != null && weatherList.isNotEmpty
-                  ? weatherList[0]['icon']
-                  : null,
-
-          'sunrise':
-              (sys?['sunrise'] as num?)?.toInt(),
-
-          'sunset':
-              (sys?['sunset'] as num?)?.toInt(),
-
-          'city':
-              data['name'],
-        };
-      }
-
+      final response = await http.get(url).timeout(const Duration(seconds: 20));
       if (response.statusCode == 401) {
-        throw Exception(
-          'مفتاح OpenWeather غير صحيح أو لم يتم تفعيله بعد.',
-        );
+        throw Exception('مفتاح OpenWeather غير صحيح أو اشتراك One Call لم يتفعّل بعد.');
+      }
+      if (response.statusCode != 200) {
+        throw Exception('فشل طلب الطقس. Status Code: ${response.statusCode}');
       }
 
-      throw Exception(
-        'فشل طلب الطقس. Status Code: ${response.statusCode}',
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final current = data['current'] as Map<String, dynamic>? ?? {};
+      final weatherList = current['weather'] as List<dynamic>? ?? [];
+      final weather = weatherList.isNotEmpty && weatherList.first is Map
+          ? Map<String, dynamic>.from(weatherList.first as Map)
+          : <String, dynamic>{};
+      final id = (weather['id'] as num?)?.toInt();
+      final description = weather['description']?.toString();
+      final main = weather['main']?.toString();
+      final dustPattern = RegExp(r'dust|sand|غبار|رمال|رملي', caseSensitive: false);
+      final hasDust = {731, 751, 761}.contains(id) ||
+          dustPattern.hasMatch('${main ?? ''} ${description ?? ''}');
+
+      final rawAlerts = data['alerts'] as List<dynamic>? ?? [];
+      final alerts = rawAlerts.whereType<Map>().map((raw) {
+        final alert = Map<String, dynamic>.from(raw);
+        return <String, dynamic>{
+          'senderName': alert['sender_name'],
+          'event': alert['event'],
+          'start': alert['start'],
+          'end': alert['end'],
+          'description': alert['description'],
+          'tags': alert['tags'] ?? <dynamic>[],
+        };
+      }).toList();
+
+      final hasDustAlert = alerts.any((alert) {
+        final tags = alert['tags'];
+        final text = '${alert['event'] ?? ''} ${tags is List ? tags.join(' ') : ''}';
+        return dustPattern.hasMatch(text);
+      });
+
+      return WeatherData(
+        temperatureC: (current['temp'] as num?)?.toDouble(),
+        windSpeedMs: (current['wind_speed'] as num?)?.toDouble(),
+        hasDust: hasDust,
+        hasDustAlert: hasDustAlert,
+        feelsLike: (current['feels_like'] as num?)?.toDouble(),
+        humidity: (current['humidity'] as num?)?.toInt(),
+        description: description,
+        icon: weather['icon']?.toString(),
+        sunrise: (current['sunrise'] as num?)?.toInt(),
+        sunset: (current['sunset'] as num?)?.toInt(),
+        city: data['name']?.toString(),
+        weatherId: id,
+        alerts: alerts,
       );
-    } catch (e) {
-      throw Exception(
-        'حدث خطأ أثناء الاتصال بخدمة الطقس: $e',
-      );
+    } on http.ClientException catch (e) {
+      throw Exception('تعذر الاتصال بخدمة الطقس: $e');
+    } on FormatException catch (e) {
+      throw Exception('تعذر قراءة بيانات الطقس: $e');
     }
   }
+
+  // For existing screens that expect Map<String, dynamic>.
+  static Future<Map<String, dynamic>> getCurrentWeatherMap({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final weather = await getCurrentWeather(
+      latitude: latitude,
+      longitude: longitude,
+    );
+    return weather.toMap();
+  }
+
+  static List<WeatherCondition> detectConditions(WeatherData weather) =>
+      weather.detectConditions();
 }

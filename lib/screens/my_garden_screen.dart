@@ -65,10 +65,11 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       );
       if (!mounted) return;
       setState(() {
-        weatherData = result;
+        weatherData = result.toMap();
         weatherError = null;
       });
     } catch (e) {
+      debugPrint('WEATHER ERROR: $e');
       if (!mounted) return;
       var message = e.toString();
       message = message.replaceFirst('Exception: ', '');
@@ -905,7 +906,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
               ),
               Expanded(
                 child: Text(
-                  'ماعندك نباتات محفوظة بعد',
+                  'لا توجد نباتات محفوظة بعد',
                   textDirection:
                       TextDirection.rtl,
                   textAlign:
