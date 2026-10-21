@@ -9,7 +9,7 @@ class Plant {
   final String? matureSpread;
   final double? minTemperatureC;
   final double? maxTemperatureC;
-  final String? climateToleranceClass; // High / Moderate / Low (قد يكون null)
+  final String? climateToleranceClass; // Tolerant / Sensitive (قد يكون null)
   final String recordType; // Validated / Predicted
 
   const Plant({
@@ -47,9 +47,9 @@ class Plant {
   String get displayName => arabicName.isNotEmpty ? arabicName : scientificName;
 
   String get shortHint {
-    if (climateToleranceClass == 'Low') return 'يحتاج عناية إضافية';
+    if (climateToleranceClass == 'Sensitive') return 'يحتاج عناية إضافية';
     if (wateringRequirement == 'High') return 'بحاجة إلى ري منتظم';
-    if (climateToleranceClass == 'High') return 'مقاوم للحرارة';
+    if (climateToleranceClass == 'Tolerant') return 'مقاوم للحرارة';
     return 'ينمو بشكل جيد';
   }
 }

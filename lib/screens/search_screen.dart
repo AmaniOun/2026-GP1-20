@@ -30,7 +30,7 @@ class _SearchScreenState extends State<SearchScreen> {
   String _query = '';
   // الفلاتر (null = بدون فلتر)
   String? _water; // Low / Moderate / High
-  String? _tolerance; // High / Moderate / Low
+  String? _tolerance; // Tolerant / Sensitive
   String? _care; // Low / Moderate / High
   bool get _hasFilters => _water != null || _tolerance != null || _care != null;
   int get _filterCount =>
@@ -42,9 +42,8 @@ class _SearchScreenState extends State<SearchScreen> {
     'High': 'ري مرتفع',
   };
   static const _toleranceOptions = {
-  'Low': 'تحمل ضعيف',
-  'Moderate': 'تحمل متوسط',
-  'High': 'تحمل عالٍ',
+  'Tolerant': 'مقاوم',
+  'Sensitive': 'حساس',
 };
   static const _careOptions = {
     'Low': 'عناية قليلة',

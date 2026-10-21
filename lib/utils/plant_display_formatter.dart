@@ -1,4 +1,3 @@
-
 class PlantDisplayFormatter {
   // احتياج الري
   static String water(String value) {
@@ -33,16 +32,10 @@ class PlantDisplayFormatter {
   // تحمل المناخ
   static String tolerance(String? value) {
     switch (value?.trim().toLowerCase()) {
-      case 'low':
-      case 'poorly tolerant':
-        return 'ضعيف';
-      case 'moderate':
-      case 'medium':
-      case 'moderately tolerant':
-        return 'متوسط';
-      case 'high':
-      case 'highly tolerant':
-        return 'عالٍ';
+      case 'tolerant':
+        return 'مقاوم';
+      case 'sensitive':
+        return 'حساس';
       default:
         return value ?? 'غير مصنّفة';
     }
@@ -73,6 +66,6 @@ class PlantDisplayFormatter {
     if (value == null || value.trim().isEmpty) {
       return 'غير مصنّفة';
     }
-    return 'تحمل ${tolerance(value)}';
+    return tolerance(value);
   }
 }

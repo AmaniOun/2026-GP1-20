@@ -1,5 +1,4 @@
-
- // ============================================================
+// ============================================================
  // (PlantService) تحميل النباتات + البحث بالاسم
  //
  // يقرأ النباتات من مجموعة "plants" في Firestore.
@@ -36,8 +35,8 @@ class PlantService {
         'matureSpread': raw['Mature_Spread'],
         'minTemperatureC': raw['Min_Temperature_C'],
         'maxTemperatureC': raw['Max_Temperature_C'],
-        'climateToleranceClass': raw['Climate_Tolerance_Class'],
-        'recordType': raw['Record_Type'],
+        'climateToleranceClass': raw['Climate_Tolerance'] ?? raw['Climate_Tolerance_Class'],
+        'recordType': raw['Recored_Type'] ?? raw['Record_Type'],
       };
 
       return Plant.fromJson(mapped);
@@ -48,7 +47,7 @@ class PlantService {
 
   /// ترشيح مبسط للنباتات في شاشة "حديقتي" (قائم على القواعد، مو الـ Recommendation Engine الكامل):
   /// - يفضّل النباتات اللي مستوى عنايتها يطابق تفضيل المستخدمة
-  /// - يفضّل النباتات عالية التحمل للمناخ، ويؤخّر ضعيفة التحمل
+  /// - يفضّل النباتات المقاومة للمناخ (Tolerant)، ويؤخّر الحساسة (Sensitive)
   /// - يتجاهل النباتات اللي ما لها اسم عربي (عشان تظهر بالكرت)
   Future<List<Plant>> recommendForGarden(
     GardenProfile garden, {
@@ -60,9 +59,8 @@ class PlantService {
     final scored = all.where((p) => p.arabicName.isNotEmpty).map((p) {
       int score = 0;
       if (p.careLevel == expectedCare) score += 2;
-      if (p.climateToleranceClass == 'High') score += 2;
-      if (p.climateToleranceClass == 'Moderate') score += 1;
-      if (p.climateToleranceClass == 'Low') score -= 2;
+      if (p.climateToleranceClass == 'Tolerant') score += 2;
+      if (p.climateToleranceClass == 'Sensitive') score -= 2;
       return MapEntry(p, score);
     }).toList();
 
