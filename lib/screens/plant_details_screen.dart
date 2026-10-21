@@ -49,14 +49,32 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     }
   }
   String _translateLight(String value) {
-    switch (value.toLowerCase()) {
+    final normalized = value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[_-]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ');
+
+    switch (normalized) {
       case 'full sun':
         return 'شمس كاملة';
+      case 'part sun':
+      case 'partial sun':
       case 'part shade':
       case 'partial shade':
         return 'ظل جزئي';
       case 'full shade':
         return 'ظل كامل';
+      case 'medium':
+      case 'moderate':
+      case 'medium light':
+        return 'متوسط';
+      case 'low':
+      case 'low light':
+        return 'منخفض';
+      case 'high':
+      case 'high light':
+        return 'مرتفع';
       default:
         return value;
     }
@@ -73,9 +91,23 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
         return value;
     }
   }
-  // تعريب فاصل المدى القادم من قاعدة البيانات دون تغيير القيمة الأصلية.
+  // عرض المدى بصيغة عربية واضحة مع الحفاظ على ترتيب الأرقام الأصلية.
   String _arabicRange(String value) {
-    return value
+    final text = value.trim();
+    final range = RegExp(
+      r'^(\d+(?:[.,]\d+)?)\s*(?:-|–|—|to|إلى)\s*(\d+(?:[.,]\d+)?)\s*(m|meter|meters|م)?\.?$',
+      caseSensitive: false,
+    ).firstMatch(text);
+
+    if (range != null) {
+      final from = range.group(1)!;
+      final to = range.group(2)!;
+      final unit = range.group(3) == null ? '' : ' م';
+      // عزل الأرقام يمنع انعكاس ترتيبها داخل اتجاه الصفحة العربي.
+      return 'من \u2066$from\u2069 إلى \u2066$to\u2069$unit';
+    }
+
+    return text
         .replaceAll(RegExp(r'\bto\b', caseSensitive: false), 'إلى')
         .replaceAll(RegExp(r'\bm\b', caseSensitive: false), 'م');
   }
