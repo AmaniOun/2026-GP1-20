@@ -23,6 +23,12 @@ enum CareLevel {
   high,
 }
 
+enum WateringLevel {
+  low,
+  medium,
+  high,
+}
+
 // ==========================================
 // أسماء اتجاهات الواجهة بالعربي
 // ==========================================
@@ -63,6 +69,24 @@ extension CareLevelLabel on CareLevel {
 }
 
 // ==========================================
+// أسماء مستويات الري بالعربي
+// ==========================================
+extension WateringLevelLabel on WateringLevel {
+  String get arabicLabel {
+    switch (this) {
+      case WateringLevel.low:
+        return 'منخفض';
+
+      case WateringLevel.medium:
+        return 'متوسط';
+
+      case WateringLevel.high:
+        return 'مرتفع';
+    }
+  }
+}
+
+// ==========================================
 // Garden Profile
 // ==========================================
 class GardenProfile {
@@ -71,6 +95,10 @@ class GardenProfile {
   final double lengthMeters;
   final double widthMeters;
   final CareLevel careLevel;
+
+  /// مستوى الري المفضل.
+  /// قد يكون null في الحدائق القديمة المحفوظة قبل إضافة هذا الحقل.
+  final WateringLevel? wateringLevel;
 
   // ========================================
   // بيانات الموقع
@@ -105,6 +133,7 @@ class GardenProfile {
     required this.widthMeters,
     required this.careLevel,
     required this.updatedAt,
+    this.wateringLevel,
 
     // جعلنا بيانات الموقع اختيارية مؤقتاً
     // حتى لا ينكسر الكود القديم.
@@ -125,6 +154,7 @@ class GardenProfile {
     double? lengthMeters,
     double? widthMeters,
     CareLevel? careLevel,
+    WateringLevel? wateringLevel,
     double? latitude,
     double? longitude,
     String? city,
@@ -143,6 +173,8 @@ class GardenProfile {
           widthMeters ?? this.widthMeters,
       careLevel:
           careLevel ?? this.careLevel,
+      wateringLevel:
+          wateringLevel ?? this.wateringLevel,
 
       latitude:
           latitude ?? this.latitude,
@@ -180,6 +212,9 @@ class GardenProfile {
 
       'careLevel':
           careLevel.name,
+
+      'wateringLevel':
+          wateringLevel?.name,
 
       // بيانات الموقع
       'latitude':
@@ -236,6 +271,16 @@ class GardenProfile {
             e.name ==
             map['careLevel'],
       ),
+
+      // الحدائق القديمة ما فيها هذا الحقل، فيكون null.
+      wateringLevel:
+          WateringLevel.values
+              .where(
+                (e) =>
+                    e.name ==
+                    map['wateringLevel'],
+              )
+              .firstOrNull,
 
       // بيانات الموقع
       latitude:

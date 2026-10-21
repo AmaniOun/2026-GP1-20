@@ -46,6 +46,7 @@ class _SetupGardenScreenState
     extends State<SetupGardenScreen> {
   FacadeDirection? selectedDirection;
   CareLevel? selectedCareLevel;
+  WateringLevel? selectedWateringLevel;
   final lengthController = TextEditingController();
   final widthController = TextEditingController();
   bool isSaving = false;
@@ -60,6 +61,8 @@ class _SetupGardenScreenState
           existing.facadeDirection;
       selectedCareLevel =
           existing.careLevel;
+      selectedWateringLevel =
+          existing.wateringLevel;
       lengthController.text =
           _formatNumber(
         existing.lengthMeters,
@@ -174,6 +177,15 @@ class _SetupGardenScreenState
       );
       return;
     }
+    // --------------------------------------
+    // مستوى الري
+    // --------------------------------------
+    if (selectedWateringLevel == null) {
+      _showMessage(
+        'يرجى تحديد مستوى الري المفضل',
+      );
+      return;
+    }
     // عرض الأبعاد والمساحة للتأكيد قبل حفظ البيانات.
     final confirmed = await _confirmGardenArea(length, width);
     if (!mounted || !confirmed) return;
@@ -230,6 +242,8 @@ class _SetupGardenScreenState
           width,
       careLevel:
           selectedCareLevel!,
+      wateringLevel:
+          selectedWateringLevel,
       // بيانات الموقع
       latitude:
           latitude,
@@ -639,6 +653,71 @@ CareLevel.values.reversed.map(                      (level) {
                   ),
                   SizedBox(
                     height:
+                        24 * scaleY,
+                  ),
+                  // ==================================
+                  // مستوى الري
+                  // ==================================
+                  _sectionLabel(
+                    'مستوى الري المفضل',
+                    scaleX,
+                  ),
+                  SizedBox(
+                    height:
+                        10 * scaleY,
+                  ),
+                  Wrap(
+                    alignment:
+                        WrapAlignment.end,
+                    spacing:
+                        10 * scaleX,
+                    runSpacing:
+                        10 * scaleY,
+                    children:
+                        WateringLevel.values.reversed.map(
+                      (level) {
+                        final isSelected =
+                            selectedWateringLevel ==
+                                level;
+                        return _choiceChip(
+                          label: level.arabicLabel,
+                          selected: isSelected,
+                          scaleX:
+                              scaleX,
+                          onTap: () {
+                            setState(
+                              () =>
+                                  selectedWateringLevel =
+                                      level,
+                            );
+                          },
+                        );
+                      },
+                    ).toList(),
+                  ),
+                  SizedBox(height: 14 * scaleY),
+                  // وصف مستوى الري المختار
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(14 * scaleX),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF1E6),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      selectedWateringLevel == null
+                          ? 'اختر مستوى الري لعرض وصفه.'
+                          : _wateringDescription(selectedWateringLevel!),
+                      textDirection: TextDirection.rtl,
+                      style: GoogleFonts.cairo(
+                        color: const Color(0xFF292D28),
+                        fontSize: 13 * scaleX,
+                        height: 1.6,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height:
                         32 * scaleY,
                   ),
                   // ==================================
@@ -781,11 +860,21 @@ CareLevel.values.reversed.map(                      (level) {
     String _careDescription(CareLevel level) {
     switch (level) {
       case CareLevel.low:
-        return 'نباتات  تحتاج إلى جهد ومتابعة وري  قليل';
+        return 'نباتات تحتاج إلى جهد ومتابعة وتشذيب قليل';
        case CareLevel.medium:
-        return 'نباتات تحتاج إلى جهد ومتابعة وري معتدل';
+        return 'نباتات تحتاج إلى جهد ومتابعة وتشذيب معتدل';
       case CareLevel.high:
-        return 'نباتات تحتاج إلى جهد ومتابعة وري أكبر';
+        return 'نباتات تحتاج إلى جهد ومتابعة وتشذيب أكبر';
+    }
+  }
+  String _wateringDescription(WateringLevel level) {
+    switch (level) {
+      case WateringLevel.low:
+        return 'ريّ على فترات متباعدة';
+      case WateringLevel.medium:
+        return 'ريّ بشكل منتظم حسب حاجة النبات';
+      case WateringLevel.high:
+        return 'ريّ متكرر، وقد يحتاج النبات إلى الماء يوميًا';
     }
   }
   Widget _choiceChip({

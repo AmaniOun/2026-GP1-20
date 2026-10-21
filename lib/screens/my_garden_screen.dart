@@ -720,10 +720,20 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
             children: [
               _gardenDataColumn(
                 Icons
-                    .water_drop_outlined,
+                    .eco_outlined,
                 'مستوى العناية',
                 g.careLevel
                     .arabicLabel,
+                null,
+                scaleX,
+              ),
+              _gardenDataColumn(
+                Icons
+                    .water_drop_outlined,
+                'مستوى الري',
+                g.wateringLevel
+                        ?.arabicLabel ??
+                    'غير محدد',
                 null,
                 scaleX,
               ),
