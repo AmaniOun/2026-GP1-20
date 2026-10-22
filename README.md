@@ -26,7 +26,7 @@ Ruwa is an Arabic Android application developed as a graduation project at King 
 
    ```json
    {
-     "PERENUAL_API_KEY": "YOUR_PERENUAL_API_KEY"
+     "PERENUAL_API_KEY": "sk-l9TN6a047aee2e78317253"
    }
    ```
 
