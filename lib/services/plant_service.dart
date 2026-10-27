@@ -1,7 +1,5 @@
 // ============================================================
  // (PlantService) تحميل النباتات + البحث بالاسم
- //
- // يقرأ النباتات من مجموعة "plants" في Firestore.
  // ============================================================
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -45,10 +43,6 @@ class PlantService {
     return _cache!;
   }
 
-  /// ترشيح مبسط للنباتات في شاشة "حديقتي" (قائم على القواعد، مو الـ Recommendation Engine الكامل):
-  /// - يفضّل النباتات اللي مستوى عنايتها يطابق تفضيل المستخدمة
-  /// - يفضّل النباتات المقاومة للمناخ (Tolerant)، ويؤخّر الحساسة (Sensitive)
-  /// - يتجاهل النباتات اللي ما لها اسم عربي (عشان تظهر بالكرت)
   Future<List<Plant>> recommendForGarden(
     GardenProfile garden, {
     int limit = 10,
@@ -80,7 +74,6 @@ class PlantService {
   }
 
   /// البحث بالاسم الكامل أو الجزئي (عربي أو علمي).
-  /// فاضي → يرجع كل النباتات.
   List<Plant> search(List<Plant> plants, String query) {
     final q = _normalize(query);
     if (q.isEmpty) return plants;
@@ -90,7 +83,7 @@ class PlantService {
     }).toList();
   }
 
-  /// فلترة بالخصائص (الماء، تحمل المناخ، العناية). null = بدون فلتر.
+  /// فلترة بالخصائص (الماء، تحمل المناخ، العناية)
   List<Plant> filter(
     List<Plant> plants, {
     String? water,
@@ -107,7 +100,7 @@ class PlantService {
     }).toList();
   }
 
-  /// توحيد النص: حروف صغيرة، وإزالة التشكيل، وتوحيد الألف والتاء المربوطة والياء
+  /// توحيد النص
   String _normalize(String s) {
     var t = s.trim().toLowerCase();
     t = t.replaceAll(RegExp('[ً-ٰٟـ]'), '');
