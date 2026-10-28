@@ -5,6 +5,7 @@ import '../services/garden_service.dart';
 import '../services/location_service.dart';
 import '../services/geoapify_service.dart';
 import '../services/weather_service.dart';
+import 'my_plants_screen.dart';
 import 'setup_garden_screen.dart';
 class MyGardenScreen extends StatefulWidget {
   const MyGardenScreen({super.key});
@@ -881,7 +882,13 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
         SizedBox(
           height: 12 * scaleY,
         ),
-        Container(
+        InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const MyPlantsScreen()),
+          ),
+          child: Container(
           padding:
               EdgeInsets.all(
             16 * scaleX,
@@ -916,7 +923,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
               ),
               Expanded(
                 child: Text(
-                  'لا توجد نباتات محفوظة بعد',
+                  'عرض نباتاتي المحفوظة',
                   textDirection:
                       TextDirection.rtl,
                   textAlign:
@@ -934,6 +941,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
               ),
             ],
           ),
+        ),
         ),
       ],
     );

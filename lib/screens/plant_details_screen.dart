@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/plant.dart';
+import '../services/garden_service.dart';
+import '../utils/confirm_dialog.dart';
+import '../services/my_plant_service.dart';
 import '../services/perenual_service.dart';
 import '../services/plant_translation_service.dart';
 import '../services/plant_image_service.dart';
@@ -22,6 +25,8 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   static const Color _lightSage = Color(0xFFE8F0E4);
   late final Future<List<Map<String, dynamic>>> _careFuture;
   late final Future<String?> _imageFuture;
+  bool _isSavingPlant = false;
+  bool _isSaved = false;
   final Map<String, Future<String>> _translationFutures = {};
   Future<String> _translationFor(String description) {
     return _translationFutures.putIfAbsent(
@@ -34,7 +39,154 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     super.initState();
     _imageFuture = PlantImageService.instance.imageFor(widget.plant.scientificName);
     _careFuture = _loadCareGuides();
+    _loadSavedState();
   }
+
+  // نعرف إذا النبتة محفوظة، عشان الزر يكون "إضافة" أو "حذف"
+  Future<void> _loadSavedState() async {
+    try {
+      final saved = await MyPlantService.instance.isAlreadySaved(widget.plant);
+      if (mounted) setState(() => _isSaved = saved);
+    } catch (_) {}
+  }
+  Future<void> _addToMyPlants() async {
+    if (_isSavingPlant) return;
+    setState(() => _isSavingPlant = true);
+    try {
+      // 1) إذا النبتة محفوظة من قبل، ما نكررها.
+      if (await MyPlantService.instance.isAlreadySaved(widget.plant)) {
+        if (!mounted) return;
+        setState(() => _isSaved = true);
+        _showMessage('هذا النبات موجود في نباتاتي من قبل', success: false);
+        return;
+      }
+
+      // 2) إذا النبتة غير مناسبة للحديقة، نحذّر ونطلب التأكيد.
+      final garden = await GardenService.instance.getGarden();
+      if (garden != null) {
+        final reasons =
+            MyPlantService.instance.unsuitableReasons(widget.plant, garden);
+        if (reasons.isNotEmpty) {
+          if (!mounted) return;
+          final confirmed = await _confirmUnsuitable(reasons);
+          if (confirmed != true) return;
+        }
+      }
+
+      final added = await MyPlantService.instance.addPlant(widget.plant);
+      if (!mounted) return;
+      if (added) setState(() => _isSaved = true);
+      _showMessage(
+        added
+            ? 'تمت إضافة النبات إلى نباتاتي بنجاح'
+            : 'هذا النبات موجود في نباتاتي من قبل',
+        success: added,
+      );
+    } catch (error) {
+      debugPrint('Add to My Plants error: $error');
+      if (!mounted) return;
+      _showMessage('تعذرت إضافة النبات، يرجى المحاولة مرة أخرى', success: false);
+    } finally {
+      if (mounted) setState(() => _isSavingPlant = false);
+    }
+  }
+
+  Future<void> _removeFromMyPlants() async {
+    if (_isSavingPlant) return;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'حذف النبات؟',
+      message: 'سيتم حذف ${widget.plant.displayName} من نباتاتي.',
+      confirmText: 'حذف',
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isSavingPlant = true);
+    try {
+      await MyPlantService.instance.removePlant(widget.plant);
+      if (!mounted) return;
+      setState(() => _isSaved = false);
+      _showRemovedWithUndo();
+    } catch (error) {
+      debugPrint('Remove from My Plants error: $error');
+      if (!mounted) return;
+      _showMessage('تعذر حذف النبات، يرجى المحاولة مرة أخرى', success: false);
+    } finally {
+      if (mounted) setState(() => _isSavingPlant = false);
+    }
+  }
+
+  // رسالة بعد الحذف مع زر "تراجع" (تختفي بعد 5 ثواني)
+  void _showRemovedWithUndo() {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearMaterialBanners();
+    messenger.clearSnackBars();
+    final controller = messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: _darkGreen,
+        duration: const Duration(seconds: 5),
+        content: Text(
+          'تم حذف النبات من نباتاتي',
+          textDirection: TextDirection.rtl,
+          style: GoogleFonts.cairo(color: Colors.white),
+        ),
+        action: SnackBarAction(
+          label: 'تراجع',
+          textColor: const Color(0xFFBFD8B8),
+          onPressed: () async {
+            try {
+              final added = await MyPlantService.instance.addPlant(widget.plant);
+              if (added && mounted) setState(() => _isSaved = true);
+            } catch (_) {}
+          },
+        ),
+      ),
+    );
+    // فلاتر ما يقفل الرسالة اللي فيها زر تلقائيًا، فنقفلها بعد 5 ثواني
+    Future.delayed(const Duration(seconds: 5), controller.close);
+  }
+
+  Future<bool?> _confirmUnsuitable(List<String> reasons) {
+    return showConfirmDialog(
+      context,
+      title: 'هذا النبات غير مناسب لحديقتك',
+      message:
+          '${reasons.map((r) => '• $r').join('\n')}\n\nسيتم إضافة النبات إلى نباتاتي عند المتابعة.',
+      confirmText: 'متابعة',
+    );
+  }
+
+  // إشعار أعلى الشاشة (مثل التصميم): أيقونة + رسالة + زر إغلاق
+  void _showMessage(String message, {bool success = true}) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearMaterialBanners();
+    messenger.showMaterialBanner(
+      MaterialBanner(
+        backgroundColor: _lightSage,
+        leading: Icon(
+          success ? Icons.check_circle : Icons.info_outline,
+          color: _green,
+        ),
+        content: Text(
+          message,
+          textDirection: TextDirection.rtl,
+          style: GoogleFonts.cairo(color: _darkGreen),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: messenger.hideCurrentMaterialBanner,
+          ),
+        ],
+      ),
+    );
+    Future.delayed(const Duration(seconds: 3), () {
+      messenger.hideCurrentMaterialBanner();
+    });
+  }
+
   Future<List<Map<String, dynamic>>> _loadCareGuides() async {
     try {
       final plant = await PerenualService.instance.findPlant(
@@ -475,17 +627,26 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                 SizedBox(
                   height: 54,
                   child: OutlinedButton.icon(
-                    onPressed: null,
-                    icon: const Icon(Icons.add_circle_outline),
+                    onPressed: _isSavingPlant
+                        ? null
+                        : (_isSaved ? _removeFromMyPlants : _addToMyPlants),
+                    icon: Icon(
+                      _isSaved
+                          ? Icons.delete_outline
+                          : Icons.add_circle_outline,
+                    ),
                     label: Text(
-                      'إضافة إلى نباتاتي',
+                      _isSaved ? 'حذف من نباتاتي' : 'إضافة إلى نباتاتي',
                       style: GoogleFonts.cairo(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: _green,
-                      side: const BorderSide(color: _green),
+                      foregroundColor:
+                          _isSaved ? const Color(0xFFB3261E) : _green,
+                      side: BorderSide(
+                        color: _isSaved ? const Color(0xFFB3261E) : _green,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(17),
                       ),

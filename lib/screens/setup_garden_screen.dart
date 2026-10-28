@@ -3,16 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/garden_profile.dart';
 import '../services/garden_service.dart';
 // ==========================================
-// شاشة إعداد / تعديل الحديقة
-//
-// - لو existingGarden == null:
-//   وضع "إعداد جديد"
-//
-// - لو existingGarden != null:
-//   وضع "تعديل" وتُعبّأ الحقول تلقائياً
-//
-// عند إنشاء حديقة جديدة، تستقبل الشاشة
-// بيانات الموقع بعد التحقق منها في My Garden.
+// شاشة إعداد الحديقة
 // ==========================================
 class SetupGardenScreen extends StatefulWidget {
   final GardenProfile? existingGarden;
@@ -192,13 +183,6 @@ class _SetupGardenScreenState
     setState(() => isSaving = true);
     // ======================================
     // تحديد بيانات الموقع التي سيتم حفظها
-    //
-    // في وضع التعديل:
-    // نحتفظ بموقع الحديقة المحفوظ سابقاً.
-    //
-    // في وضع الإنشاء:
-    // نستخدم الموقع الذي تم التحقق منه
-    // قبل فتح هذه الشاشة.
     // ======================================
     final existing =
         widget.existingGarden;
@@ -857,26 +841,27 @@ CareLevel.values.reversed.map(                      (level) {
   // Choice Chip
   // ========================================
 
-    String _careDescription(CareLevel level) {
-    switch (level) {
-      case CareLevel.low:
-        return 'نباتات تحتاج إلى جهد ومتابعة وتشذيب قليل';
-       case CareLevel.medium:
-        return 'نباتات تحتاج إلى جهد ومتابعة وتشذيب معتدل';
-      case CareLevel.high:
-        return 'نباتات تحتاج إلى جهد ومتابعة وتشذيب أكبر';
-    }
+String _wateringDescription(WateringLevel level) {
+  switch (level) {
+    case WateringLevel.low:
+      return 'الصيف: كل 10 إلى 21 يومًا\nالشتاء: بدون ري';
+    case WateringLevel.medium:
+      return 'الصيف: كل 7 إلى 10 أيام\nالشتاء: كل 14 إلى 21 يومًا';
+    case WateringLevel.high:
+      return 'الصيف: كل 5 إلى 10 أيام\nالشتاء: كل 14 إلى 21 يومًا';
   }
-  String _wateringDescription(WateringLevel level) {
-    switch (level) {
-      case WateringLevel.low:
-        return 'ريّ على فترات متباعدة';
-      case WateringLevel.medium:
-        return 'ريّ بشكل منتظم حسب حاجة النبات';
-      case WateringLevel.high:
-        return 'ريّ متكرر، وقد يحتاج النبات إلى الماء يوميًا';
-    }
+}
+
+String _careDescription(CareLevel level) {
+  switch (level) {
+    case CareLevel.low:
+      return 'التقليم: مرة في السنة\nالتسميد: مرة في السنة';
+    case CareLevel.medium:
+      return 'التقليم: مرتان في السنة\nالتسميد: مرتان في السنة';
+    case CareLevel.high:
+      return 'التقليم: 4 مرات في السنة\nالتسميد: 3 مرات في السنة';
   }
+}
   Widget _choiceChip({
     required String label,
     required bool selected,

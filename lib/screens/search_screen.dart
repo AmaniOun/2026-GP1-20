@@ -7,11 +7,6 @@ import '../services/plant_image_service.dart';
 import '../utils/plant_display_formatter.dart';
 // ==========================================
 // شاشة البحث عن النباتات
-//
-// - عرض النباتات الموجودة في قاعدة روى (PBI 8)
-// - البحث بالاسم الكامل أو الجزئي، عربي أو علمي (PBI 9)
-// - فلترة بالخصائص: الماء، تحمل المناخ، العناية (PBI 22)
-// - رسائل: لا توجد نتائج / لا توجد نباتات تطابق الفلاتر
 // ==========================================
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -28,14 +23,13 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isLoading = true;
   String? _error;
   String _query = '';
-  // الفلاتر (null = بدون فلتر)
   String? _water; // Low / Moderate / High
   String? _tolerance; // Tolerant / Sensitive
   String? _care; // Low / Moderate / High
   bool get _hasFilters => _water != null || _tolerance != null || _care != null;
   int get _filterCount =>
       [_water, _tolerance, _care].where((e) => e != null).length;
-  // خيارات الفلاتر (القيمة في الداتاسيت: النص العربي)
+  // خيارات الفلاتر 
   static const _waterOptions = {
     'Low': 'ري منخفض',
     'Moderate': 'ري متوسط',
@@ -76,7 +70,6 @@ class _SearchScreenState extends State<SearchScreen> {
       });
     }
   }
-  // البحث بالاسم ثم تطبيق الفلاتر (المنطق داخل PlantService)
   List<Plant> get _results {
     final service = PlantService.instance;
     final byName = service.search(_allPlants, _query);

@@ -1,13 +1,5 @@
 // ==========================================
-// نموذج بيانات الحديقة (Garden Profile)
-//
-// يمثل بيانات الحديقة الأساسية:
-// - اتجاه الواجهة
-// - أبعاد مساحة الزراعة
-// - مستوى العناية
-//
-// بالإضافة إلى بيانات الموقع التي تم التحقق منها
-// باستخدام Geoapify.
+// (Garden Profile)
 // ==========================================
 
 enum FacadeDirection {
@@ -96,33 +88,29 @@ class GardenProfile {
   final double widthMeters;
   final CareLevel careLevel;
 
-  /// مستوى الري المفضل.
-  /// قد يكون null في الحدائق القديمة المحفوظة قبل إضافة هذا الحقل.
   final WateringLevel? wateringLevel;
 
   // ========================================
   // بيانات الموقع
   // ========================================
 
-  /// Latitude الذي تم الحصول عليه من الجهاز.
   final double? latitude;
 
-  /// Longitude الذي تم الحصول عليه من الجهاز.
   final double? longitude;
 
-  /// المدينة القادمة من Geoapify.
+  ///From Geoapify.
   final String? city;
 
-  /// المنطقة / المحافظة القادمة من Geoapify.
+  ///From Geoapify.
   final String? state;
 
-  /// الدولة القادمة من Geoapify.
+  ///From Geoapify.
   final String? country;
 
-  /// العنوان المنسق القادم من Geoapify.
+  ///From Geoapify.
   final String? formattedAddress;
 
-  /// هل تم التحقق من أن الموقع ضمن نطاق رُوى؟
+  /// هل تم التحقق من أن الموقع ضمن نطاق الرياض
   final bool locationVerified;
 
   final DateTime updatedAt;
@@ -134,9 +122,6 @@ class GardenProfile {
     required this.careLevel,
     required this.updatedAt,
     this.wateringLevel,
-
-    // جعلنا بيانات الموقع اختيارية مؤقتاً
-    // حتى لا ينكسر الكود القديم.
     this.latitude,
     this.longitude,
     this.city,
@@ -308,8 +293,6 @@ class GardenProfile {
           map['formattedAddress']
               as String?,
 
-      // لو عندنا Garden Profile قديم
-      // ما فيه هذا الحقل، نعتبره false.
       locationVerified:
           map['locationVerified']
               as bool? ??

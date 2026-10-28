@@ -5,10 +5,6 @@ import '../models/garden_profile.dart';
 
 // ==========================================
 // GardenService
-//
-// يحفظ بيانات الحديقة داخل مستند المستخدم
-// في Firestore، تحت الحقل "garden"
-// (حسب ER: كل User له 0..1 GardenProfile).
 // ==========================================
 class GardenService {
   GardenService._internal();
@@ -46,7 +42,5 @@ class GardenService {
     await saveGarden(garden);
   }
 
-  void clear() {
-    // لا حاجة فعلية هنا مع Firestore، أبقيناها حتى لا ينكسر الكود القديم
-  }
+  void clear() {  }
 }
