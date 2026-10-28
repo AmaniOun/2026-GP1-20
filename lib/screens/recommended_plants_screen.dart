@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../models/plant.dart';
 import '../services/recommendation_engine.dart';
 import 'plant_details_screen.dart';
+import '../services/plant_translation_service.dart';
+import '../utils/plant_display_formatter.dart';
 
 class RecommendedPlantsScreen extends StatefulWidget {
   const RecommendedPlantsScreen({super.key});
@@ -341,15 +343,15 @@ class _RecommendedPlantsScreenState
                       children: [
                         _buildInfoChip(
                           icon: Icons.water_drop_outlined,
-                          label: 'الري: ${plant.wateringRequirement}',
+                          label: 'الري: ${PlantDisplayFormatter.water(plant.wateringRequirement)}',
                         ),
                         _buildInfoChip(
                           icon: Icons.wb_sunny_outlined,
-                          label: 'الإضاءة: ${plant.lightRequirement}',
+                          label: 'الإضاءة: ${PlantDisplayFormatter.light(plant.lightRequirement)}',
                         ),
                         _buildInfoChip(
                           icon: Icons.spa_outlined,
-                          label: 'العناية: ${plant.careLevel}',
+                          label: 'العناية: ${PlantDisplayFormatter.care(plant.careLevel)}',
                         ),
                       ],
                     ),

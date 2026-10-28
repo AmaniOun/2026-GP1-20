@@ -68,4 +68,43 @@ class PlantDisplayFormatter {
     }
     return tolerance(value);
   }
+
+  // احتياج الإضاءة
+  static String light(String value) {
+    final normalized = value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[_-]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ');
+
+    switch (normalized) {
+      case 'full sun':
+        return 'شمس كاملة';
+
+      case 'partial sun':
+      case 'part sun':
+      case 'partial shade':
+      case 'part shade':
+        return 'ظل جزئي';
+
+      case 'full shade':
+        return 'ظل كامل';
+
+      case 'medium':
+      case 'moderate':
+      case 'medium light':
+        return 'متوسط';
+
+      case 'low':
+      case 'low light':
+        return 'منخفض';
+
+      case 'high':
+      case 'high light':
+        return 'مرتفع';
+
+      default:
+        return value;
+    }
+  }
 }
