@@ -7,6 +7,9 @@ import '../services/geoapify_service.dart';
 import '../services/weather_service.dart';
 import 'my_plants_screen.dart';
 import 'setup_garden_screen.dart';
+import 'recommended_plants_screen.dart';
+import 'recommended_plants_screen.dart';
+import 'recommended_plants_screen.dart';import 'recommended_plants_screen.dart';
 class MyGardenScreen extends StatefulWidget {
   const MyGardenScreen({super.key});
   @override
@@ -946,89 +949,77 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       ],
     );
   }
-  // ============================================================
-  // النباتات الموصى بها
-  // ============================================================
-  Widget _recommendedPlantsSection(
-    double scaleX,
-    double scaleY,
-  ) {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'نباتات موصى بها لك',
-          textDirection:
-              TextDirection.rtl,
-          textAlign:
-              TextAlign.right,
-          style: GoogleFonts.cairo(
-            color:
-                const Color(0xFF234525),
-            fontSize: 17 * scaleX,
-            fontWeight:
-                FontWeight.w700,
-          ),
-        ),
-        SizedBox(
-          height: 12 * scaleY,
-        ),
-        Container(
-          padding:
-              EdgeInsets.all(
-            16 * scaleX,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius:
-                BorderRadius.circular(
-              14,
-            ),
-            border: Border.all(
-              color: const Color(
-                0xFFDCE4D8,
-              ),
-              width: 1.2,
-            ),
-          ),
-          child: Row(
-            textDirection:
-                TextDirection.rtl,
-            children: [
-              Icon(
-                Icons
-                    .local_florist_outlined,
-                color: const Color(
-                  0xFF6F8F64,
-                ),
-                size: 26 * scaleX,
-              ),
-              SizedBox(
-                width: 12 * scaleX,
-              ),
-              Expanded(
-                child: Text(
-                  'لا توجد نباتات موصى بها حاليًا',
-                  textDirection:
-                      TextDirection.rtl,
-                  textAlign:
-                      TextAlign.right,
-                  style:
-                      GoogleFonts.cairo(
-                    color:
-                        const Color(
-                      0xFF7D8079,
-                    ),
-                    fontSize:
-                        13 * scaleX,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+
+
+// ============================================================
+// النباتات الموصى بها
+// ============================================================
+Widget _recommendedPlantsSection(
+double scaleX,
+double scaleY,
+) {
+return Column(
+crossAxisAlignment: CrossAxisAlignment.stretch,
+children: [
+Text(
+'نباتات موصى بها لك',
+textDirection: TextDirection.rtl,
+textAlign: TextAlign.right,
+style: GoogleFonts.cairo(
+color: const Color(0xFF234525),
+fontSize: 17 * scaleX,
+fontWeight: FontWeight.w700,
+),
+),
+SizedBox(
+height: 12 * scaleY,
+),
+InkWell(
+borderRadius: BorderRadius.circular(14),
+onTap: () => Navigator.push(
+context,
+MaterialPageRoute(
+builder: (context) =>
+const RecommendedPlantsScreen(),
+),
+),
+child: Container(
+padding: EdgeInsets.all(16 * scaleX),
+decoration: BoxDecoration(
+color: Colors.white,
+borderRadius: BorderRadius.circular(14),
+border: Border.all(
+color: const Color(0xFFDCE4D8),
+width: 1.2,
+),
+),
+child: Row(
+textDirection: TextDirection.rtl,
+children: [
+Icon(
+Icons.local_florist_outlined,
+color: const Color(0xFF6F8F64),
+size: 26 * scaleX,
+),
+SizedBox(
+width: 12 * scaleX,
+),
+Expanded(
+child: Text(
+'عرض النباتات الموصى بها',
+textDirection: TextDirection.rtl,
+textAlign: TextAlign.right,
+style: GoogleFonts.cairo(
+color: const Color(0xFF7D8079),
+fontSize: 13 * scaleX,
+),
+),
+),
+],
+),
+),
+),
+],
+);
+}
 }
