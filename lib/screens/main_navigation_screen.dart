@@ -2,6 +2,7 @@
    import 'package:google_fonts/google_fonts.dart';
 
    import 'account_screen.dart';
+   import 'home_screen.dart';
    import 'my_garden_screen.dart';
    import 'search_screen.dart';
 
@@ -14,7 +15,7 @@ class MainNavigationScreen extends StatefulWidget {
     super.key,
     required this.name,
     required this.email,
-    this.initialIndex = 4,
+    this.initialIndex = 0,
   });
 
   @override
@@ -35,7 +36,7 @@ class _MainNavigationScreenState
   @override
   Widget build(BuildContext context) {
     final pages = [
-      const _TemporaryPage(title: 'الرئيسية'),
+      HomeScreen(name: widget.name, active: _selectedIndex == 0, onSelectTab: (index) => setState(() => _selectedIndex = index)),
       const SearchScreen(),
       const MyGardenScreen(),
       const _TemporaryPage(title: 'الإشعارات'),

@@ -8,8 +8,11 @@ import '../services/weather_service.dart';
 import 'my_plants_screen.dart';
 import 'setup_garden_screen.dart';
 import 'recommended_plants_screen.dart';
-import 'recommended_plants_screen.dart';
-import 'recommended_plants_screen.dart';import 'recommended_plants_screen.dart';
+import 'plant_details_screen.dart';
+import '../models/plant.dart';
+import '../services/my_plant_service.dart';
+import '../services/recommendation_engine.dart';
+import '../services/plant_image_service.dart';
 class MyGardenScreen extends StatefulWidget {
   const MyGardenScreen({super.key});
   @override
@@ -22,9 +25,18 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
   Map<String, dynamic>? weatherData;
   bool isLoadingWeather = false;
   String? weatherError;
+  late Future<List<Plant>> _savedPreview;
+  late Future<RecommendationResults> _recommendationPreview;
+
+  void _loadPreviews() {
+    _savedPreview = MyPlantService.instance.getMyPlants();
+    _recommendationPreview = RecommendationEngine.instance.getRecommendations();
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadPreviews();
     _loadGarden();
   }
   // ============================================================
@@ -40,6 +52,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       isLoading = false;
     });
     if (result != null) {
+      setState(_loadPreviews);
       _loadWeather(result);
     }
   }
@@ -104,6 +117,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       if (result != null && mounted) {
         setState(() => garden = result);
         _loadWeather(result);
+        setState(_loadPreviews);
       }
       return;
     }
@@ -163,6 +177,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       if (result != null && mounted) {
         setState(() => garden = result);
         _loadWeather(result);
+        setState(_loadPreviews);
       }
     } catch (e) {
       if (!mounted) return;
@@ -857,169 +872,270 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
     }
     return value.toString();
   }
-  // ============================================================
-  // قسم نباتاتي
-  // ============================================================
-  Widget _myPlantsSection(
-    double scaleX,
-    double scaleY,
-  ) {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.stretch,
+  // قسم نباتاتي - عرض فعلي لحالة القائمة المحفوظة.
+  Widget _myPlantsSection(double scaleX, double scaleY) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _previewHeader('نباتاتي', () async {
+        await Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const MyPlantsScreen()));
+        if (mounted) setState(_loadPreviews);
+      }),
+      SizedBox(height: 12 * scaleY),
+      FutureBuilder<List<Plant>>(
+        future: _savedPreview,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF315B32)));
+          }
+          if (snapshot.hasError) return _previewMessage('تعذر تحميل النباتات المحفوظة.');
+          final plants = snapshot.data ?? [];
+          if (plants.isEmpty) return _previewMessage('لا توجد نباتات محفوظة بعد');
+          return SizedBox(
+            height: 212,
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: plants.length > 3 ? 3 : plants.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) => _smallPlantCard(plants[index]),
+              ),
+            ),
+          );
+        },
+      ),
+    ]);
+  }
+
+  Widget _recommendedPlantsSection(double scaleX, double scaleY) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _previewHeader('النباتات الموصى بها لك', () async {
+        await Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const RecommendedPlantsScreen()));
+        if (mounted) setState(_loadPreviews);
+      }),
+      SizedBox(height: 12 * scaleY),
+      FutureBuilder<RecommendationResults>(
+        future: _recommendationPreview,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF315B32)));
+          }
+          if (snapshot.hasError) return _previewMessage('تعذر تحميل النباتات الموصى بها حاليًا.');
+          final results = snapshot.data!;
+          final items = [...results.tolerantPlants, ...results.sensitivePlants]
+            ..sort((a,b) => b.score.compareTo(a.score));
+          if (items.isEmpty) return _previewMessage('لا توجد نباتات موصى بها لك حاليًا');
+          return SizedBox(
+            height: 261,
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: items.length > 3 ? 3 : items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context,index) {
+                final item=items[index];
+                final sensitive=results.sensitivePlants.any((r)=>r.plant.id==item.plant.id);
+                return _smallPlantCard(item.plant, score:item.score, sensitive:sensitive);
+              },
+              ),
+            ),
+          );
+        },
+      ),
+    ]);
+  }
+
+  Widget _previewHeader(String title, VoidCallback onTap) {
+    return Row(
+      textDirection: TextDirection.rtl,
       children: [
-        Text(
-          'نباتاتي',
-          textDirection:
-              TextDirection.rtl,
-          textAlign:
-              TextAlign.right,
-          style: GoogleFonts.cairo(
-            color:
-                const Color(0xFF234525),
-            fontSize: 17 * scaleX,
-            fontWeight:
-                FontWeight.w700,
-          ),
-        ),
-        SizedBox(
-          height: 12 * scaleY,
-        ),
-        InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const MyPlantsScreen()),
-          ),
-          child: Container(
-          padding:
-              EdgeInsets.all(
-            16 * scaleX,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius:
-                BorderRadius.circular(
-              14,
-            ),
-            border: Border.all(
-              color: const Color(
-                0xFFDCE4D8,
-              ),
-              width: 1.2,
+        Expanded(
+          child: Text(
+            title,
+            textAlign: TextAlign.right,
+            textDirection: TextDirection.rtl,
+            style: GoogleFonts.cairo(
+              color: const Color(0xFF234525),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          child: Row(
-            textDirection:
-                TextDirection.rtl,
-            children: [
-              Icon(
-                Icons
-                    .local_florist_outlined,
-                color: const Color(
-                  0xFF6F8F64,
-                ),
-                size: 26 * scaleX,
-              ),
-              SizedBox(
-                width: 12 * scaleX,
-              ),
-              Expanded(
-                child: Text(
-                  'عرض نباتاتي المحفوظة',
-                  textDirection:
-                      TextDirection.rtl,
-                  textAlign:
-                      TextAlign.right,
-                  style:
-                      GoogleFonts.cairo(
-                    color:
-                        const Color(
-                      0xFF7D8079,
-                    ),
-                    fontSize:
-                        13 * scaleX,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
+        Material(
+          color: const Color(0xFFE7F0E3),
+          borderRadius: BorderRadius.circular(24),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(24),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                textDirection: TextDirection.rtl,
+                children: [
+                  Text('عرض الكل', style: GoogleFonts.cairo(
+                    color: const Color(0xFF315B32),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  )),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_left_rounded,
+                    color: Color(0xFF315B32), size: 20),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
 
+  Widget _previewMessage(String message) => Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
+      border:Border.all(color:const Color(0xFFDCE4D8))),
+    child:Text(message,textAlign:TextAlign.center,style:GoogleFonts.cairo(color:const Color(0xFF555A52))),
+  );
 
-// ============================================================
-// النباتات الموصى بها
-// ============================================================
-Widget _recommendedPlantsSection(
-double scaleX,
-double scaleY,
-) {
-return Column(
-crossAxisAlignment: CrossAxisAlignment.stretch,
-children: [
-Text(
-'نباتات موصى بها لك',
-textDirection: TextDirection.rtl,
-textAlign: TextAlign.right,
-style: GoogleFonts.cairo(
-color: const Color(0xFF234525),
-fontSize: 17 * scaleX,
-fontWeight: FontWeight.w700,
-),
-),
-SizedBox(
-height: 12 * scaleY,
-),
-InkWell(
-borderRadius: BorderRadius.circular(14),
-onTap: () => Navigator.push(
-context,
-MaterialPageRoute(
-builder: (context) =>
-const RecommendedPlantsScreen(),
-),
-),
-child: Container(
-padding: EdgeInsets.all(16 * scaleX),
-decoration: BoxDecoration(
-color: Colors.white,
-borderRadius: BorderRadius.circular(14),
-border: Border.all(
-color: const Color(0xFFDCE4D8),
-width: 1.2,
-),
-),
-child: Row(
-textDirection: TextDirection.rtl,
-children: [
-Icon(
-Icons.local_florist_outlined,
-color: const Color(0xFF6F8F64),
-size: 26 * scaleX,
-),
-SizedBox(
-width: 12 * scaleX,
-),
-Expanded(
-child: Text(
-'عرض النباتات الموصى بها',
-textDirection: TextDirection.rtl,
-textAlign: TextAlign.right,
-style: GoogleFonts.cairo(
-color: const Color(0xFF7D8079),
-fontSize: 13 * scaleX,
-),
-),
-),
-],
-),
-),
-),
-],
-);
-}
+  // بطاقة معاينة مضغوطة، بهامش للصورة ومن دون Spacer يسبب فراغات كبيرة.
+  Widget _smallPlantCard(Plant plant, {double? score, bool sensitive = false}) {
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PlantDetailsScreen(plant: plant)),
+      ),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: 148,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFDCE4D8)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(7, 7, 7, 0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(11),
+                child: SizedBox(
+                  height: 130,
+                  width: double.infinity,
+                  child: FutureBuilder<String?>(
+                    future: PlantImageService.instance.imageFor(plant.scientificName),
+                    builder: (context, snapshot) {
+                      final url = snapshot.data;
+                      if (url != null && url.isNotEmpty) {
+                        return Image.network(
+                          url,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => _emptyPlantImage(),
+                        );
+                      }
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF315B32),
+                          ),
+                        );
+                      }
+                      return _emptyPlantImage();
+                    },
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(7, 5, 7, 3),
+              child: Text(
+                plant.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.cairo(
+                  color: const Color(0xFF234525),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (score != null) ...[
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: sensitive ? const Color(0xFFF8ECDD) : const Color(0xFFE4EFE0),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    sensitive ? 'حساس' : 'مقاوم',
+                    style: GoogleFonts.cairo(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: sensitive ? const Color(0xFF9A6A32) : const Color(0xFF315B32),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 5, 8, 2),
+                child: Row(
+                  textDirection: TextDirection.rtl,
+                  children: [
+                    Text(
+                      '${score.toStringAsFixed(0)}%',
+                      style: GoogleFonts.cairo(
+                        fontSize: 11,
+                        color: const Color(0xFF315B32),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: LinearProgressIndicator(
+                        value: (score / 100).clamp(0.0, 1.0),
+                        minHeight: 5,
+                        color: sensitive ? const Color(0xFF9A6A32) : const Color(0xFF315B32),
+                        backgroundColor: const Color(0xFFE8F0E4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: Container(
+                height: 31,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF2EA),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(
+                  'عرض التفاصيل',
+                  style: GoogleFonts.cairo(
+                    color: const Color(0xFF315B32),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyPlantImage()=>Container(color:const Color(0xFFE8F0E4),
+    child:const Icon(Icons.local_florist_outlined,color:Color(0xFF315B32),size:32));
 }

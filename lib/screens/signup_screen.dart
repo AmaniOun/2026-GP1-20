@@ -99,7 +99,7 @@ class _SignupScreenState extends State<SignupScreen> {
           builder: (context) => MainNavigationScreen(
             name: name,
             email: email,
-            initialIndex: 4,
+            initialIndex: 0,
           ),
         ),
         (route) => false,

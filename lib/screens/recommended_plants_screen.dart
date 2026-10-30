@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/plant.dart';
 import '../services/recommendation_engine.dart';
+import '../services/plant_image_service.dart';
 import '../utils/plant_display_formatter.dart';
 import 'plant_details_screen.dart';
 
@@ -26,6 +27,7 @@ class _RecommendedPlantsScreenState
   static const Color secondaryTextColor = Color(0xFF555A52);
 
   late Future<RecommendationResults> _recommendationsFuture;
+  String _filter = 'all'; // all, tolerant, sensitive
 
   @override
   void initState() {
@@ -59,7 +61,7 @@ class _RecommendedPlantsScreenState
           elevation: 0,
           centerTitle: true,
           title: Text(
-            'النباتات المقترحة',
+            'النباتات الموصى بها لك',
             style: GoogleFonts.cairo(
               fontWeight: FontWeight.w800,
               fontSize: 20,
@@ -96,50 +98,42 @@ class _RecommendedPlantsScreenState
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
                 children: [
                   _buildIntro(),
-                  const SizedBox(height: 24),
-                  _buildSectionHeader(
-                    title: 'النباتات المقاومة لمناخ الرياض',
-                    subtitle:
-                        'نباتات مصنّفة على أنها مقاومة، مرتبة حسب توافقها مع حديقتك.',
-                    count: results.tolerantPlants.length,
-                    icon: Icons.check_circle_outline,
-                    color: greenColor,
-                  ),
-                  const SizedBox(height: 12),
-                  if (results.tolerantPlants.isEmpty)
-                    _buildSectionEmpty(
-                      'لا توجد نباتات مقاومة مطابقة للشروط الحالية.',
-                    )
-                  else
-                    ...results.tolerantPlants.map(
-                      (recommendation) => _buildPlantCard(
-                        recommendation.plant,
-                        recommendation.score,
-                        isSensitive: false,
-                      ),
+                  const SizedBox(height: 16),
+                  _filterTabs(),
+                  const SizedBox(height: 16),
+                  if (_filter == 'all' || _filter == 'tolerant') ...[
+                    _buildSectionHeader(
+                      title: 'النباتات المقاومة لمناخ الرياض',
+                      subtitle: 'مرتبة حسب توافقها مع حديقتك.',
+                      count: results.tolerantPlants.length,
+                      icon: Icons.check_circle_outline,
+                      color: greenColor,
                     ),
-                  const SizedBox(height: 28),
-                  _buildSectionHeader(
-                    title: 'النباتات الحساسة',
-                    subtitle:
-                        'نباتات مصنّفة على أنها حساسة لمناخ الرياض. اعرضيها للمقارنة فقط.',
-                    count: results.sensitivePlants.length,
-                    icon: Icons.info_outline,
-                    color: const Color(0xFF9A6A32),
-                  ),
-                  const SizedBox(height: 12),
-                  if (results.sensitivePlants.isEmpty)
-                    _buildSectionEmpty(
-                      'لا توجد نباتات حساسة مطابقة للشروط الحالية.',
-                    )
-                  else
-                    ...results.sensitivePlants.map(
-                      (recommendation) => _buildPlantCard(
-                        recommendation.plant,
-                        recommendation.score,
-                        isSensitive: true,
-                      ),
+                    const SizedBox(height: 12),
+                    if (results.tolerantPlants.isEmpty)
+                      _buildSectionEmpty('لا توجد نباتات مقاومة مطابقة حاليًا.')
+                    else
+                      ...results.tolerantPlants.map((r) => _buildPlantCard(
+                        r.plant, r.score, isSensitive: false,
+                      )),
+                  ],
+                  if (_filter == 'all') const SizedBox(height: 18),
+                  if (_filter == 'all' || _filter == 'sensitive') ...[
+                    _buildSectionHeader(
+                      title: 'النباتات الحساسة',
+                      subtitle: 'للمقارنة فقط، مرتبة حسب التوافق.',
+                      count: results.sensitivePlants.length,
+                      icon: Icons.info_outline,
+                      color: const Color(0xFF9A6A32),
                     ),
+                    const SizedBox(height: 12),
+                    if (results.sensitivePlants.isEmpty)
+                      _buildSectionEmpty('لا توجد نباتات حساسة مطابقة حاليًا.')
+                    else
+                      ...results.sensitivePlants.map((r) => _buildPlantCard(
+                        r.plant, r.score, isSensitive: true,
+                      )),
+                  ],
                 ],
               ),
             );
@@ -148,6 +142,69 @@ class _RecommendedPlantsScreenState
       ),
     );
   }
+
+  Widget _filterTabs() {
+    const options = [
+      ('all', 'الكل'), ('tolerant', 'مقاوم'), ('sensitive', 'حساس'),
+    ];
+    return Row(
+      children: options.map((option) {
+        final selected = _filter == option.$1;
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () => setState(() => _filter = option.$1),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? greenColor : lightSageColor,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Text(option.$2, style: GoogleFonts.cairo(
+                  color: selected ? Colors.white : darkGreenColor,
+                  fontSize: 14, fontWeight: FontWeight.w700,
+                )),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _plantPhoto(Plant plant) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: SizedBox(
+        width: 112, height: 118,
+        child: FutureBuilder<String?>(
+          future: PlantImageService.instance.imageFor(plant.scientificName),
+          builder: (context, snapshot) {
+            final url = snapshot.data;
+            if (url != null && url.isNotEmpty) {
+              return Image.network(url, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _photoFallback());
+            }
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator(
+                color: greenColor, strokeWidth: 2,
+              ));
+            }
+            return _photoFallback();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _photoFallback() => Container(
+    color: lightSageColor,
+    child: const Icon(Icons.local_florist_outlined,
+      color: greenColor, size: 32),
+  );
 
   Widget _buildIntro() {
     return Container(
@@ -284,19 +341,7 @@ class _RecommendedPlantsScreenState
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: lightSageColor,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.local_florist_outlined,
-                  color: greenColor,
-                  size: 30,
-                ),
-              ),
+              _plantPhoto(plant),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

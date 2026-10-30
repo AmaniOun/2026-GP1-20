@@ -153,8 +153,8 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                         if (plants.isEmpty) {
                           return _message(
                             Icons.local_florist_outlined,
-                            'لا توجد نباتات في نباتاتي بعد',
-                            'النباتات التي تضيفها ستظهر هنا',
+                            'لا توجد نباتات محفوظة بعد',
+                            'ستظهر هنا النباتات بعد إضافتها إلى نباتاتي',
                             actionText: 'إضافة نبات',
                             onAction: _openSearch,
                           );

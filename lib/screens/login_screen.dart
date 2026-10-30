@@ -89,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
           builder: (context) => MainNavigationScreen(
             name: name,
             email: email,
-            initialIndex: 4,
+            initialIndex: 0,
           ),
         ),
         (route) => false,
