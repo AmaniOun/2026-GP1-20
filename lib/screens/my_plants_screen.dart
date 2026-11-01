@@ -287,73 +287,74 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
 
   // ---------- بطاقة النبتة ----------
   Widget _plantCard(Plant plant) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () => _openDetails(plant),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _border, width: 1.2),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: _plantImage(plant),
-                  ),
-                  PositionedDirectional(
-                    top: 0,
-                    start: 0,
-                    child: _deleteButton(plant),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 46,
-              child: Center(
-                child: Text(
-                  plant.displayName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.cairo(
-                    color: _darkGreen,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    height: 1.3,
-                  ),
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AspectRatio(
+            aspectRatio: 1,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: _plantImage(plant),
                 ),
-              ),
+                PositionedDirectional(
+                  top: 0,
+                  start: 0,
+                  child: _deleteButton(plant),
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
-            Container(
-              height: 34,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F3EC),
-                borderRadius: BorderRadius.circular(8),
-              ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 46,
+            child: Center(
               child: Text(
-                'عرض التفاصيل',
+                plant.displayName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: GoogleFonts.cairo(
                   color: _darkGreen,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 6),
+          Material(
+            color: const Color(0xFFF1F3EC),
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              onTap: () => _openDetails(plant),
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                height: 34,
+                child: Center(
+                  child: Text(
+                    'عرض التفاصيل',
+                    style: GoogleFonts.cairo(
+                      color: _darkGreen,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

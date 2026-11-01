@@ -1001,13 +1001,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
 
   // بطاقة معاينة مضغوطة، بهامش للصورة ومن دون Spacer يسبب فراغات كبيرة.
   Widget _smallPlantCard(Plant plant, {double? score, bool sensitive = false}) {
-    return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => PlantDetailsScreen(plant: plant)),
-      ),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
+    return Container(
         width: 148,
         decoration: BoxDecoration(
           color: Colors.white,
@@ -1113,26 +1107,35 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
             const SizedBox(height: 4),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: Container(
-                height: 31,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF2EA),
+              child: Material(
+                color: const Color(0xFFEFF2EA),
+                borderRadius: BorderRadius.circular(9),
+                child: InkWell(
                   borderRadius: BorderRadius.circular(9),
-                ),
-                child: Text(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PlantDetailsScreen(plant: plant),
+                    ),
+                  ),
+                  child: SizedBox(
+                    height: 31,
+                    child: Center(
+                      child: Text(
                   'عرض التفاصيل',
                   style: GoogleFonts.cairo(
                     color: const Color(0xFF315B32),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
+            ),
           ],
         ),
-      ),
     );
   }
 

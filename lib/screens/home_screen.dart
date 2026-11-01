@@ -196,6 +196,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // My Plants requires a configured garden. Route users to My Garden setup first.
+  void _openMyPlants() {
+    if (!_gardenLoaded || _loading) return;
+    if (_garden == null) {
+      widget.onSelectTab(2);
+      return;
+    }
+    _openPage(const MyPlantsScreen());
+  }
+
   void _openPage(Widget page) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => page))
         .then((_) { if (mounted) _reload(); });
@@ -229,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 20),
               _gardenCard(),
               const SizedBox(height: 22),
-              _heading('نباتاتي المحفوظة', onTap: () => _openPage(const MyPlantsScreen())),
+              _heading('نباتاتي المحفوظة', onTap: _openMyPlants),
               const SizedBox(height: 11),
               _plantStrip(_saved, saved: true),
               const SizedBox(height: 22),
@@ -432,7 +442,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final actions = <({String text, IconData icon, VoidCallback onTap})>[
       (text: _garden == null ? 'إعداد الحديقة' : 'حديقتي', icon: Icons.yard_outlined, onTap: () => widget.onSelectTab(2)),
       (text: 'البحث', icon: Icons.search_rounded, onTap: () => widget.onSelectTab(1)),
-      (text: 'نباتاتي', icon: Icons.local_florist_outlined, onTap: () => _openPage(const MyPlantsScreen())),
+      (text: 'نباتاتي', icon: Icons.local_florist_outlined, onTap: _openMyPlants),
       (text: 'الموصى بها لك', icon: Icons.auto_awesome_outlined, onTap: () {
         if (_garden == null) { widget.onSelectTab(2); return; }
         _openPage(const RecommendedPlantsScreen());
@@ -540,9 +550,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 side: const BorderSide(color: _border),
               ),
               clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => _openPage(PlantDetailsScreen(plant: plant)),
-                child: Column(
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -597,21 +605,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 4),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                      child: Container(
-                        height: 31,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF2EA),
+                      child: Material(
+                        color: const Color(0xFFEFF2EA),
+                        borderRadius: BorderRadius.circular(9),
+                        child: InkWell(
                           borderRadius: BorderRadius.circular(9),
+                          onTap: () => _openPage(PlantDetailsScreen(plant: plant)),
+                          child: SizedBox(
+                            height: 31,
+                            child: Center(
+                              child: Text('عرض التفاصيل',
+                                style: GoogleFonts.cairo(color: _green,
+                                  fontSize: 11, fontWeight: FontWeight.w600)),
+                            ),
+                          ),
                         ),
-                        child: Text('عرض التفاصيل',
-                          style: GoogleFonts.cairo(color: _green,
-                            fontSize: 11, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ],
                 ),
-              ),
             ),
           );
         },

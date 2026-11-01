@@ -101,11 +101,12 @@ class _RecommendedPlantsScreenState
                   const SizedBox(height: 16),
                   _filterTabs(),
                   const SizedBox(height: 16),
+                  _selectedFilterCount(results),
+                  const SizedBox(height: 14),
                   if (_filter == 'all' || _filter == 'tolerant') ...[
                     _buildSectionHeader(
                       title: 'النباتات المقاومة لمناخ الرياض',
                       subtitle: 'مرتبة حسب توافقها مع حديقتك.',
-                      count: results.tolerantPlants.length,
                       icon: Icons.check_circle_outline,
                       color: greenColor,
                     ),
@@ -122,7 +123,6 @@ class _RecommendedPlantsScreenState
                     _buildSectionHeader(
                       title: 'النباتات الحساسة',
                       subtitle: 'للمقارنة فقط، مرتبة حسب التوافق.',
-                      count: results.sensitivePlants.length,
                       icon: Icons.info_outline,
                       color: const Color(0xFF9A6A32),
                     ),
@@ -145,7 +145,9 @@ class _RecommendedPlantsScreenState
 
   Widget _filterTabs() {
     const options = [
-      ('all', 'الكل'), ('tolerant', 'مقاوم'), ('sensitive', 'حساس'),
+      ('all', 'الكل'),
+      ('tolerant', 'مقاوم'),
+      ('sensitive', 'حساس'),
     ];
     return Row(
       children: options.map((option) {
@@ -172,6 +174,48 @@ class _RecommendedPlantsScreenState
           ),
         );
       }).toList(),
+    );
+  }
+
+  // دائرة واحدة للعدد، محسوبة من آخر نتائج RecommendationEngine.
+  Widget _selectedFilterCount(RecommendationResults results) {
+    final tolerantCount = results.tolerantPlants.length;
+    final sensitiveCount = results.sensitivePlants.length;
+    final count = switch (_filter) {
+      'tolerant' => tolerantCount,
+      'sensitive' => sensitiveCount,
+      _ => tolerantCount + sensitiveCount,
+    };
+    final title = switch (_filter) {
+      'tolerant' => 'عدد النباتات المقاومة',
+      'sensitive' => 'عدد النباتات الحساسة',
+      _ => 'إجمالي النباتات الموصى بها لك',
+    };
+    return Row(
+      children: [
+        Expanded(
+          child: Text(title,
+            style: GoogleFonts.cairo(
+              color: darkGreenColor,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: lightSageColor,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text('$count',
+            style: GoogleFonts.cairo(
+              color: greenColor,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -255,7 +299,6 @@ class _RecommendedPlantsScreenState
   Widget _buildSectionHeader({
     required String title,
     required String subtitle,
-    required int count,
     required IconData icon,
     required Color color,
   }) {
@@ -288,24 +331,6 @@ class _RecommendedPlantsScreenState
             ],
           ),
         ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            '$count',
-            style: GoogleFonts.cairo(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -326,17 +351,7 @@ class _RecommendedPlantsScreenState
         borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: borderColor),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PlantDetailsScreen(plant: plant),
-            ),
-          );
-        },
-        child: Padding(
+      child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,12 +447,34 @@ class _RecommendedPlantsScreenState
                         color: statusColor,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'اضغطي لعرض التفاصيل',
-                      style: GoogleFonts.cairo(
-                        color: secondaryTextColor,
-                        fontSize: 11,
+                    const SizedBox(height: 10),
+                    Material(
+                      color: const Color(0xFFEFF2EA),
+                      borderRadius: BorderRadius.circular(9),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(9),
+                        splashColor: greenColor.withValues(alpha: 0.16),
+                        highlightColor: greenColor.withValues(alpha: 0.08),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PlantDetailsScreen(plant: plant),
+                          ),
+                        ),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 36,
+                          child: Center(
+                            child: Text(
+                              'عرض التفاصيل',
+                              style: GoogleFonts.cairo(
+                                color: greenColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -446,7 +483,6 @@ class _RecommendedPlantsScreenState
             ],
           ),
         ),
-      ),
     );
   }
 
