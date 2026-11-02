@@ -103,37 +103,57 @@ class _RecommendedPlantsScreenState
                   const SizedBox(height: 16),
                   _selectedFilterCount(results),
                   const SizedBox(height: 14),
-                  if (_filter == 'all' || _filter == 'tolerant') ...[
-                    _buildSectionHeader(
-                      title: 'النباتات المقاومة لمناخ الرياض',
-                      subtitle: 'مرتبة حسب توافقها مع حديقتك.',
-                      icon: Icons.check_circle_outline,
-                      color: greenColor,
-                    ),
-                    const SizedBox(height: 12),
-                    if (results.tolerantPlants.isEmpty)
-                      _buildSectionEmpty('لا توجد نباتات مقاومة مطابقة حاليًا.')
-                    else
-                      ...results.tolerantPlants.map((r) => _buildPlantCard(
-                        r.plant, r.score, isSensitive: false,
-                      )),
-                  ],
-                  if (_filter == 'all') const SizedBox(height: 18),
-                  if (_filter == 'all' || _filter == 'sensitive') ...[
-                    _buildSectionHeader(
-                      title: 'النباتات الحساسة',
-                      subtitle: 'للمقارنة فقط، مرتبة حسب التوافق.',
-                      icon: Icons.info_outline,
-                      color: const Color(0xFF9A6A32),
-                    ),
-                    const SizedBox(height: 12),
-                    if (results.sensitivePlants.isEmpty)
-                      _buildSectionEmpty('لا توجد نباتات حساسة مطابقة حاليًا.')
-                    else
-                      ...results.sensitivePlants.map((r) => _buildPlantCard(
-                        r.plant, r.score, isSensitive: true,
-                      )),
-                  ],
+                  // عنوان واحد يتغير حسب الفلتر؛ وفي "الكل" تُعرض
+                  // النباتات المقاومة والحساسة معًا مرتبة بنسبة التوافق.
+                  _buildSectionHeader(
+                    title: switch (_filter) {
+                      'tolerant' => 'النباتات المقاومة لمناخ الرياض',
+                      'sensitive' => 'النباتات الحساسة لمناخ الرياض',
+                      _ => 'النباتات الأنسب لحديقتك',
+                    },
+                    subtitle: switch (_filter) {
+                      'sensitive' => 'مرتبة حسب توافقها مع حديقتك.',
+                      _ => 'مرتبة حسب توافقها مع حديقتك.',
+                    },
+                    icon: _filter == 'sensitive'
+                        ? Icons.info_outline
+                        : Icons.check_circle_outline,
+                    color: _filter == 'sensitive'
+                        ? const Color(0xFF9A6A32)
+                        : greenColor,
+                  ),
+                  const SizedBox(height: 12),
+                  Builder(builder: (context) {
+                    final items = [
+                      if (_filter != 'sensitive')
+                        ...results.tolerantPlants.map(
+                          (r) => (recommendation: r, sensitive: false),
+                        ),
+                      if (_filter != 'tolerant')
+                        ...results.sensitivePlants.map(
+                          (r) => (recommendation: r, sensitive: true),
+                        ),
+                    ]..sort((a, b) => b.recommendation.score
+                        .compareTo(a.recommendation.score));
+                    if (items.isEmpty) {
+                      return _buildSectionEmpty(
+                        _filter == 'tolerant'
+                            ? 'لا توجد نباتات مقاومة مطابقة حاليًا.'
+                            : _filter == 'sensitive'
+                                ? 'لا توجد نباتات حساسة مطابقة حاليًا.'
+                                : 'لا توجد نباتات موصى بها لك حاليًا.',
+                      );
+                    }
+                    return Column(
+                      children: items.map((item) => _buildPlantCard(
+                        item.recommendation.plant,
+                        item.recommendation.score,
+                        matchedFactors: item.recommendation.matchedFactors,
+                        partiallyMatchedFactors: item.recommendation.partiallyMatchedFactors,
+                        isSensitive: item.sensitive,
+                      )).toList(),
+                    );
+                  }),
                 ],
               ),
             );
@@ -314,7 +334,7 @@ class _RecommendedPlantsScreenState
               Text(
                 title,
                 style: GoogleFonts.cairo(
-                  color: darkGreenColor,
+                  color: _filter == 'sensitive' ? const Color(0xFF9A6A32) : darkGreenColor,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
@@ -339,6 +359,8 @@ class _RecommendedPlantsScreenState
     Plant plant,
     double score, {
     required bool isSensitive,
+    required List<String> matchedFactors,
+    required List<String> partiallyMatchedFactors,
   }) {
     final Color statusColor =
         isSensitive ? const Color(0xFF9A6A32) : greenColor;
@@ -447,6 +469,29 @@ class _RecommendedPlantsScreenState
                         color: statusColor,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      matchedFactors.isEmpty
+                          ? 'لا يوجد توافق كامل في العوامل الثلاثة'
+                          : 'متوافق في: ${matchedFactors.join(' • ')}',
+                      textDirection: TextDirection.rtl,
+                      style: GoogleFonts.cairo(
+                        color: darkGreenColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (partiallyMatchedFactors.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'توافق جزئي في: ${partiallyMatchedFactors.join(' • ')}',
+                        textDirection: TextDirection.rtl,
+                        style: GoogleFonts.cairo(
+                          color: secondaryTextColor,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     Material(
                       color: const Color(0xFFEFF2EA),

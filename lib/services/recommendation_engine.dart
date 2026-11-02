@@ -7,10 +7,15 @@ import 'plant_service.dart';
 class PlantRecommendation {
   final Plant plant;
   final double score;
+  // Metadata for the UI only; it does NOT affect the score.
+  final List<String> matchedFactors;
+  final List<String> partiallyMatchedFactors;
 
   const PlantRecommendation({
     required this.plant,
     required this.score,
+    this.matchedFactors = const [],
+    this.partiallyMatchedFactors = const [],
   });
 }
 
@@ -81,9 +86,26 @@ class RecommendationEngine {
         continue;
       }
 
+      // Describe the same factor results used above without recalculating
+      // or changing the existing score, thresholds or weights.
+      final matchedFactors = <String>[
+        if (wateringCompatibility == 1) 'الري',
+        if (sunlightCompatibility == 1) 'الإضاءة',
+        if (careCompatibility == 1) 'العناية',
+      ];
+      final partiallyMatchedFactors = <String>[
+        // Unspecified garden watering preference produces 0.5 in the
+        // existing engine, so it must NOT be called a complete match.
+        if (wateringCompatibility > 0 && wateringCompatibility < 1) 'الري',
+        if (sunlightCompatibility > 0 && sunlightCompatibility < 1) 'الإضاءة',
+        if (careCompatibility > 0 && careCompatibility < 1) 'العناية',
+      ];
+
       final recommendation = PlantRecommendation(
         plant: plant,
         score: score,
+        matchedFactors: matchedFactors,
+        partiallyMatchedFactors: partiallyMatchedFactors,
       );
 
       final String climateClass =
