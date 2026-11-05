@@ -51,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _hasLoadedOnce = false;
   bool _gardenLoaded = false;
   String? _error;
+  bool _showSavedPlants = false; // Two previews share one calm section.
   int _tipIndex = 0;
   Timer? _tipTimer;
 
@@ -227,31 +228,20 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: _bg,
         body: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
             children: [
               _header(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 22),
               _weatherCard(),
-              const SizedBox(height: 22),
-              _heading('الوصول السريع'),
-              const SizedBox(height: 12),
+              const SizedBox(height: 26),
               _quickActions(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 26),
               _gardenCard(),
-              const SizedBox(height: 22),
-              _heading('نباتاتي المحفوظة', onTap: _openMyPlants),
-              const SizedBox(height: 11),
-              _plantStrip(_saved, saved: true),
-              const SizedBox(height: 22),
-              _heading('النباتات الموصى بها لك', onTap: () {
-                if (_garden == null) { widget.onSelectTab(2); return; }
-                _openPage(const RecommendedPlantsScreen());
-              }),
-              const SizedBox(height: 11),
-              _plantStrip(_recommended.map((e) => e.plant).toList(), saved: false),
-              const SizedBox(height: 22),
-              _heading('نصائح سريعة'),
-              const SizedBox(height: 11),
+              const SizedBox(height: 28),
+              _plantsOverview(),
+              const SizedBox(height: 28),
+              _heading('نصيحة لحديقتك'),
+              const SizedBox(height: 12),
               _tipsCarousel(),
             ],
           ),
@@ -259,6 +249,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
 
   Widget _header() {
     final firstName = widget.name.trim().split(' ').first;
@@ -443,77 +434,155 @@ class _HomeScreenState extends State<HomeScreen> {
       (text: _garden == null ? 'إعداد الحديقة' : 'حديقتي', icon: Icons.yard_outlined, onTap: () => widget.onSelectTab(2)),
       (text: 'البحث', icon: Icons.search_rounded, onTap: () => widget.onSelectTab(1)),
       (text: 'نباتاتي', icon: Icons.local_florist_outlined, onTap: _openMyPlants),
-      (text: 'الموصى بها لك', icon: Icons.auto_awesome_outlined, onTap: () {
+      (text: 'التوصيات', icon: Icons.auto_awesome_outlined, onTap: () {
         if (_garden == null) { widget.onSelectTab(2); return; }
         _openPage(const RecommendedPlantsScreen());
       }),
     ];
     return Row(
+      // Keep the first shortcut (My Garden) at the far left.
       textDirection: TextDirection.ltr,
       children: [
-        for (var i = 0; i < actions.length; i++) ...[
-          if (i != 0) const SizedBox(width: 7),
+        for (final action in actions)
           Expanded(
-            child: Material(
-              color: _light,
-              borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                onTap: actions[i].onTap,
-                borderRadius: BorderRadius.circular(14),
-                child: SizedBox(
-                  height: 91,
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(actions[i].icon, color: _green, size: 27),
-                        const SizedBox(height: 7),
-                        Text(
-                          actions[i].text,
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.cairo(
-                            color: _dark, fontSize: 10, fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+            child: InkWell(
+              onTap: action.onTap,
+              borderRadius: BorderRadius.circular(15),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 54,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: _light,
+                        borderRadius: BorderRadius.circular(17),
+                      ),
+                      child: Icon(action.icon, color: _green, size: 25),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      action.text,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.cairo(
+                        color: _dark,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+
+  // A compact garden summary replaces the previous card-inside-card layout.
+  Widget _gardenCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 17),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _border),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.spa_outlined, color: _green, size: 25),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _text('حديقتك في لمحة', size: 17, weight: FontWeight.w800),
+                const SizedBox(height: 5),
+                Text(
+                  '${_saved.length} نبات محفوظ  •  ${_garden == null || _error == 'تعذر تحميل التوصيات.' ? '—' : _recommended.length.toString()} موصى به',
+                  maxLines: 2,
+                  style: GoogleFonts.cairo(
+                    fontSize: 13,
+                    color: const Color(0xFF6E796B),
                   ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Material(
+            color: _light,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () => widget.onSelectTab(2),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                child: Text(
+                  _garden == null ? 'إعداد' : 'عرض',
+                  style: GoogleFonts.cairo(color: _green, fontSize: 13, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Saved and recommended plants live in one section, reducing screen clutter.
+  // The full lists are still accessible through the same routes as before.
+  Widget _plantsOverview() {
+    final saved = _showSavedPlants;
+    final title = saved ? 'نباتاتي المحفوظة' : 'النباتات الموصى بها لك';
+    final onShowAll = saved
+        ? _openMyPlants
+        : () {
+            if (_garden == null) { widget.onSelectTab(2); return; }
+            _openPage(const RecommendedPlantsScreen());
+          };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _heading(title, onTap: onShowAll),
+        const SizedBox(height: 13),
+        Row(
+          children: [
+            _plantTab('الموصى بها', !saved, () => setState(() => _showSavedPlants = false)),
+            const SizedBox(width: 8),
+            _plantTab('نباتاتي', saved, () => setState(() => _showSavedPlants = true)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _plantStrip(saved ? _saved : _recommended.map((e) => e.plant).toList(), saved: saved),
       ],
     );
   }
 
-  Widget _gardenCard() => _surface(color: _light, child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [const Icon(Icons.spa_outlined, color: _green, size: 23), const SizedBox(width: 7), _text('ملخص حديقتك', size: 18, weight: FontWeight.w800)]),
-      const SizedBox(height: 11),
-      Row(children: [
-        Expanded(child: _counter('النباتات المحفوظة', '${_saved.length}', Icons.bookmark_outline)),
-        const SizedBox(width: 10),
-        Expanded(child: _counter('النباتات الموصى بها لك', _garden == null || (_error == 'تعذر تحميل التوصيات.') ? '—' : '${_recommended.length}', Icons.auto_awesome_outlined)),
-      ]),
-      const SizedBox(height: 12),
-      SizedBox(width: double.infinity, child: ElevatedButton(
-        onPressed: () => widget.onSelectTab(2),
-        style: ElevatedButton.styleFrom(backgroundColor: _green, foregroundColor: Colors.white,
-          elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-        child: Text(_garden == null ? 'إعداد حديقتي' : 'عرض حديقتي',
-          style: GoogleFonts.cairo(fontWeight: FontWeight.w700)))),
-    ],
-  ));
-
-  Widget _counter(String title, String value, IconData icon) =>
-      Container(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 7),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(13)),
-        child: Column(children: [Icon(icon, color: _green), const SizedBox(height: 4),
-          _text(value, size: 23, weight: FontWeight.w800),
-          Text(title, textAlign: TextAlign.center, style: GoogleFonts.cairo(fontSize: 10, color: _dark))]));
+  Widget _plantTab(String title, bool selected, VoidCallback onTap) {
+    return Material(
+      color: selected ? _green : _light,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 8),
+          child: Text(
+            title,
+            style: GoogleFonts.cairo(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : _green,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _plantStrip(List<Plant> plants, {required bool saved}) {
     if (_loading && plants.isEmpty) {
@@ -651,8 +720,8 @@ class _HomeScreenState extends State<HomeScreen> {
         if (velocity.abs() > 120) _changeTip(velocity < 0 ? -1 : 1);
       },
       child: _surface(
-        color: _light,
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 14),
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 12),
         child: Column(children: [
           Row(textDirection: TextDirection.ltr, children: [
             IconButton(
