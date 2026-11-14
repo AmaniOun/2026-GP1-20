@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'activation_screen.dart';
 import 'login_screen.dart';
 import 'main_navigation_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -84,23 +85,18 @@ class _SignupScreenState extends State<SignupScreen> {
         email: email,
         password: password,
       );
-      // حفظ بيانات المستخدم في Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
-        'full_name': name,
-        'email': email,
-      });
+            // حفظ الاسم في ملف المستخدم داخل Authentication (بدون إنشاء مستند في Firestore)
+      await userCredential.user!.updateDisplayName(name);
+
+      // إرسال رابط التفعيل إلى البريد الإلكتروني
+      await userCredential.user!.sendEmailVerification();
+
       if (!mounted) return;
+
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => MainNavigationScreen(
-            name: name,
-            email: email,
-            initialIndex: 0,
-          ),
+          builder: (context) => const ActivationScreen(),
         ),
         (route) => false,
       );

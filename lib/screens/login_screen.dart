@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'activation_screen.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 import 'main_navigation_screen.dart';
@@ -76,12 +77,23 @@ class _LoginScreenState extends State<LoginScreen> {
         email: email,
         password: password,
       );
-      // جلب الاسم الحقيقي من Firestore
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .get();
-      final name = (doc.data()?['full_name'] as String?) ?? 'مستخدم رُوى';
+           final user = userCredential.user!;
+
+      // الحساب غير مفعّل: الانتقال إلى صفحة التفعيل
+      if (!user.emailVerified) {
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ActivationScreen(),
+          ),
+          (route) => false,
+        );
+        return;
+      }
+
+      // الحساب مفعّل: جلب الاسم، أو إنشاء مستند المستخدم إذا لم يكن موجودًا
+      final name = await ActivationScreen.ensureUserDocument(user);
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
