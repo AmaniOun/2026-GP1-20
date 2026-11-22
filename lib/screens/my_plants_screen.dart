@@ -1,9 +1,9 @@
+import '../widgets/ruwa_plant_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/plant.dart';
 import '../services/my_plant_service.dart';
-import '../services/plant_image_service.dart';
 import '../utils/confirm_dialog.dart';
 import 'plant_details_screen.dart';
 import 'search_screen.dart';
@@ -88,15 +88,53 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
           return Scaffold(
             backgroundColor: _background,
             appBar: AppBar(
+              toolbarHeight: 68,
               backgroundColor: _background,
               surfaceTintColor: _background,
               elevation: 0,
-              leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
+              scrolledUnderElevation: 0,
+              centerTitle: true,
+              titleSpacing: 0,
+              title: Text('نباتاتي',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.cairo(
                   color: _darkGreen,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
                 ),
-                onPressed: () => Navigator.pop(context),
+              ),
+              leadingWidth: 64,
+              leading: Padding(
+                padding: const EdgeInsetsDirectional.only(start: 12),
+                child: Center(
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => Navigator.of(context).pop(),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Center(
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: _lightSage,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: Icon(Icons.arrow_forward_ios_rounded,
+                                color: _green, size: 25),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
             // زر "إضافة نبات" بعرض كامل أسفل الشاشة (نفس شكل أزرار التطبيق)
@@ -172,48 +210,15 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
     );
   }
 
-  // ---------- الرأس: رجوع + العنوان ----------
-  Widget _header() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.eco, color: _green, size: 26),
-                        const SizedBox(width: 8),
-                        Text(
-                          'نباتاتي',
-                          style: GoogleFonts.cairo(
-                            color: _darkGreen,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'نباتاتك في مكان واحد، وبعنايتك تزدهر دائمًا.',
-                      style: GoogleFonts.cairo(color: _textSecondary, fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-        ],
-      ),
-    );
-  }
+  // Introductory text remains below the fixed AppBar.
+  Widget _header() => Padding(
+    padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 20, 16),
+    child: Text(
+      'نباتاتك في مكان واحد، وبعنايتك تزدهر دائمًا.',
+      textAlign: TextAlign.right,
+      style: GoogleFonts.cairo(color: _textSecondary, fontSize: 14),
+    ),
+  );
 
   // ---------- المحتوى: بطاقة العدد + الشبكة ----------
   Widget _content(List<Plant> plants) {
@@ -439,26 +444,9 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
     }
   }
 
-  Widget _plantImage(Plant plant) {
-    Widget placeholder() => Container(
-          color: const Color(0xFFE9EBE4),
-          alignment: Alignment.center,
-          child: const Icon(Icons.image_outlined, color: _grey, size: 30),
-        );
 
-    return FutureBuilder<String?>(
-      future: PlantImageService.instance.imageFor(plant.scientificName),
-      builder: (context, snapshot) {
-        final url = snapshot.data;
-        if (url == null || url.isEmpty) return placeholder();
-        return Image.network(
-          url,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => placeholder(),
-        );
-      },
-    );
-  }
+  Widget _plantImage(Plant plant) =>
+      RuwaPlantImage(scientificName: plant.scientificName);
 
   // ---------- رسالة (فاضية / خطأ) ----------
   Widget _message(

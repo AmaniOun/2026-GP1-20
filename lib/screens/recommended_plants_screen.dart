@@ -1,15 +1,19 @@
+import '../widgets/ruwa_saved_badge.dart';
+import '../widgets/ruwa_plant_image.dart';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/plant.dart';
 import '../services/recommendation_engine.dart';
-import '../services/plant_image_service.dart';
 import '../utils/plant_display_formatter.dart';
 import 'plant_details_screen.dart';
 
 class RecommendedPlantsScreen extends StatefulWidget {
-  const RecommendedPlantsScreen({super.key});
+  const RecommendedPlantsScreen({super.key, this.initialResults});
+
+  // Supplied by Home when already available; refresh still uses the engine.
+  final RecommendationResults? initialResults;
 
   @override
   State<RecommendedPlantsScreen> createState() =>
@@ -32,7 +36,11 @@ class _RecommendedPlantsScreenState
   @override
   void initState() {
     super.initState();
-    _loadRecommendations();
+    if (widget.initialResults != null) {
+      _recommendationsFuture = Future.value(widget.initialResults!);
+    } else {
+      _loadRecommendations();
+    }
   }
 
   void _loadRecommendations() {
@@ -56,16 +64,56 @@ class _RecommendedPlantsScreenState
       child: Scaffold(
         backgroundColor: backgroundColor,
         appBar: AppBar(
+          toolbarHeight: 68,
           backgroundColor: backgroundColor,
-          foregroundColor: darkGreenColor,
+          surfaceTintColor: backgroundColor,
           elevation: 0,
+          scrolledUnderElevation: 0,
           centerTitle: true,
+          titleSpacing: 0,
           title: Text(
             'النباتات الموصى بها لك',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.cairo(
-              fontWeight: FontWeight.w800,
-              fontSize: 20,
               color: darkGreenColor,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          leadingWidth: 64,
+          leading: Padding(
+            padding: const EdgeInsetsDirectional.only(start: 12),
+            child: Center(
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Center(
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: lightSageColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: greenColor,
+                            size: 25,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -90,71 +138,64 @@ class _RecommendedPlantsScreenState
               return _buildEmptyState('تعذر تحميل النباتات حاليًا.');
             }
 
+            // Build only the cards that enter the viewport; avoids queuing
+            // image API requests for all 137 plants at once.
+            final items = [
+              if (_filter != 'sensitive')
+                ...results.tolerantPlants.map(
+                  (r) => (recommendation: r, sensitive: false),
+                ),
+              if (_filter != 'tolerant')
+                ...results.sensitivePlants.map(
+                  (r) => (recommendation: r, sensitive: true),
+                ),
+            ]..sort((a, b) => b.recommendation.score
+                .compareTo(a.recommendation.score));
+
             return RefreshIndicator(
               color: greenColor,
               onRefresh: _refresh,
-              child: ListView(
+              child: ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                children: [
-                  _buildIntro(),
-                  const SizedBox(height: 16),
-                  _filterTabs(),
-                  const SizedBox(height: 16),
-                  _selectedFilterCount(results),
-                  const SizedBox(height: 14),
-                  // عنوان واحد يتغير حسب الفلتر؛ وفي "الكل" تُعرض
-                  // النباتات المقاومة والحساسة معًا مرتبة بنسبة التوافق.
-                  _buildSectionHeader(
-                    title: switch (_filter) {
-                      'tolerant' => 'النباتات المقاومة لمناخ الرياض',
-                      'sensitive' => 'النباتات الحساسة لمناخ الرياض',
-                      _ => 'النباتات الأنسب لحديقتك',
-                    },
-                    subtitle: switch (_filter) {
-                      'sensitive' => 'مرتبة حسب توافقها مع حديقتك.',
-                      _ => 'مرتبة حسب توافقها مع حديقتك.',
-                    },
-                    icon: _filter == 'sensitive'
-                        ? Icons.info_outline
-                        : Icons.check_circle_outline,
-                    color: _filter == 'sensitive'
-                        ? const Color(0xFF9A6A32)
-                        : greenColor,
-                  ),
-                  const SizedBox(height: 12),
-                  Builder(builder: (context) {
-                    final items = [
-                      if (_filter != 'sensitive')
-                        ...results.tolerantPlants.map(
-                          (r) => (recommendation: r, sensitive: false),
+                itemCount: 4 + (items.isEmpty ? 1 : items.length),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(4, 6, 4, 6),
+                      child: Text(
+                        'نباتات تناسب ظروف حديقتك بناءً على موقعك وإعداداتك.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.cairo(
+                          color: secondaryTextColor,
+                          fontSize: 14,
+                          height: 1.6,
                         ),
-                      if (_filter != 'tolerant')
-                        ...results.sensitivePlants.map(
-                          (r) => (recommendation: r, sensitive: true),
-                        ),
-                    ]..sort((a, b) => b.recommendation.score
-                        .compareTo(a.recommendation.score));
-                    if (items.isEmpty) {
-                      return _buildSectionEmpty(
-                        _filter == 'tolerant'
-                            ? 'لا توجد نباتات مقاومة مطابقة حاليًا.'
-                            : _filter == 'sensitive'
-                                ? 'لا توجد نباتات حساسة مطابقة حاليًا.'
-                                : 'لا توجد نباتات موصى بها لك حاليًا.',
-                      );
-                    }
-                    return Column(
-                      children: items.map((item) => _buildPlantCard(
-                        item.recommendation.plant,
-                        item.recommendation.score,
-                        matchedFactors: item.recommendation.matchedFactors,
-                        partiallyMatchedFactors: item.recommendation.partiallyMatchedFactors,
-                        isSensitive: item.sensitive,
-                      )).toList(),
+                      ),
                     );
-                  }),
-                ],
+                  }
+                  if (index == 1) return const SizedBox(height: 12);
+                  if (index == 2) return _filterTabs();
+                  if (index == 3) return const SizedBox(height: 20);
+                  if (items.isEmpty) {
+                    return _buildSectionEmpty(
+                      _filter == 'tolerant'
+                          ? 'لا توجد نباتات مقاومة مطابقة حاليًا.'
+                          : _filter == 'sensitive'
+                              ? 'لا توجد نباتات حساسة مطابقة حاليًا.'
+                              : 'لا توجد نباتات موصى بها لك حاليًا.',
+                    );
+                  }
+                  final item = items[index - 4];
+                  return _buildPlantCard(
+                    item.recommendation.plant,
+                    item.recommendation.score,
+                    matchedFactors: item.recommendation.matchedFactors,
+                    partiallyMatchedFactors:
+                        item.recommendation.partiallyMatchedFactors,
+                    isSensitive: item.sensitive,
+                  );
+                },
               ),
             );
           },
@@ -179,10 +220,12 @@ class _RecommendedPlantsScreenState
               borderRadius: BorderRadius.circular(24),
               onTap: () => setState(() => _filter = option.$1),
               child: Container(
+                constraints: const BoxConstraints(minHeight: 48),
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: selected ? greenColor : lightSageColor,
+                  color: selected ? greenColor : backgroundColor,
+                  border: Border.all(color: selected ? greenColor : borderColor, width: 1.2),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Text(option.$2, style: GoogleFonts.cairo(
@@ -239,35 +282,17 @@ class _RecommendedPlantsScreenState
     );
   }
 
-  Widget _plantPhoto(Plant plant) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: SizedBox(
-        width: 112, height: 118,
-        child: FutureBuilder<String?>(
-          future: PlantImageService.instance.imageFor(plant.scientificName),
-          builder: (context, snapshot) {
-            final url = snapshot.data;
-            if (url != null && url.isNotEmpty) {
-              return Image.network(url, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _photoFallback());
-            }
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator(
-                color: greenColor, strokeWidth: 2,
-              ));
-            }
-            return _photoFallback();
-          },
-        ),
-      ),
-    );
-  }
 
-  Widget _photoFallback() => Container(
-    color: lightSageColor,
-    child: const Icon(Icons.local_florist_outlined,
-      color: greenColor, size: 32),
+  Widget _cachedPlantPhoto(String scientificName) =>
+      RuwaPlantImage(scientificName: scientificName);
+
+  Widget _plantPhoto(Plant plant) => ClipRRect(
+    borderRadius: BorderRadius.circular(14),
+    child: SizedBox(
+      width: 112,
+      height: 112,
+      child: _cachedPlantPhoto(plant.scientificName),
+    ),
   );
 
   Widget _buildIntro() {
@@ -334,7 +359,7 @@ class _RecommendedPlantsScreenState
               Text(
                 title,
                 style: GoogleFonts.cairo(
-                  color: _filter == 'sensitive' ? const Color(0xFF9A6A32) : darkGreenColor,
+                  color: darkGreenColor,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
@@ -362,20 +387,26 @@ class _RecommendedPlantsScreenState
     required List<String> matchedFactors,
     required List<String> partiallyMatchedFactors,
   }) {
-    final Color statusColor =
-        isSensitive ? const Color(0xFF9A6A32) : greenColor;
+    // Keep RecommendationEngine scores and factor lists unchanged.
+    final statusColor = isSensitive
+        ? const Color(0xFF98691F)
+        : greenColor;
+    final statusBackground = isSensitive
+        ? const Color(0xFFFFF0D7)
+        : const Color(0xFFE1F2DE);
 
-    return Card(
-      color: Colors.white,
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: borderColor),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: borderColor, width: 1.2),
       ),
-      child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _plantPhoto(plant),
@@ -386,17 +417,23 @@ class _RecommendedPlantsScreenState
                   children: [
                     Text(
                       plant.displayName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.cairo(
                         color: darkGreenColor,
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
+                        height: 1.4,
                       ),
                     ),
                     if (plant.scientificName.trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         plant.scientificName,
                         textDirection: TextDirection.ltr,
+                        textAlign: TextAlign.right,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.cairo(
                           color: secondaryTextColor,
                           fontSize: 12,
@@ -404,121 +441,35 @@ class _RecommendedPlantsScreenState
                         ),
                       ),
                     ],
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _buildInfoChip(
-                          icon: Icons.water_drop_outlined,
-                          label:
-                              'الري: ${PlantDisplayFormatter.water(plant.wateringRequirement)}',
-                        ),
-                        _buildInfoChip(
-                          icon: Icons.wb_sunny_outlined,
-                          label:
-                              'الإضاءة: ${PlantDisplayFormatter.light(plant.lightRequirement)}',
-                        ),
-                        _buildInfoChip(
-                          icon: Icons.spa_outlined,
-                          label:
-                              'العناية: ${PlantDisplayFormatter.care(plant.careLevel)}',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Icon(
-                          isSensitive
-                              ? Icons.info_outline
-                              : Icons.check_circle_outline,
-                          color: statusColor,
-                          size: 17,
-                        ),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            isSensitive
-                                ? 'مصنّف كنبات حساس'
-                                : 'مصنّف كنبات مقاوم',
-                            style: GoogleFonts.cairo(
-                              color: statusColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '${score.toStringAsFixed(0)}%',
-                          style: GoogleFonts.cairo(
-                            color: statusColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: LinearProgressIndicator(
-                        value: (score / 100).clamp(0.0, 1.0),
-                        minHeight: 6,
-                        backgroundColor: lightSageColor,
-                        color: statusColor,
-                      ),
-                    ),
                     const SizedBox(height: 8),
-                    Text(
-                      matchedFactors.isEmpty
-                          ? 'لا يوجد توافق كامل في العوامل الثلاثة'
-                          : 'متوافق في: ${matchedFactors.join(' • ')}',
-                      textDirection: TextDirection.rtl,
-                      style: GoogleFonts.cairo(
-                        color: darkGreenColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: RuwaSavedBadge(plantId: plant.id),
                     ),
-                    if (partiallyMatchedFactors.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        'توافق جزئي في: ${partiallyMatchedFactors.join(' • ')}',
-                        textDirection: TextDirection.rtl,
-                        style: GoogleFonts.cairo(
-                          color: secondaryTextColor,
-                          fontSize: 10.5,
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: statusBackground,
+                          borderRadius: BorderRadius.circular(30),
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Material(
-                      color: const Color(0xFFEFF2EA),
-                      borderRadius: BorderRadius.circular(9),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(9),
-                        splashColor: greenColor.withValues(alpha: 0.16),
-                        highlightColor: greenColor.withValues(alpha: 0.08),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PlantDetailsScreen(plant: plant),
-                          ),
-                        ),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 36,
-                          child: Center(
-                            child: Text(
-                              'عرض التفاصيل',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.thermostat_outlined,
+                                size: 17, color: statusColor),
+                            const SizedBox(width: 5),
+                            Text(isSensitive ? 'حساس' : 'مقاوم',
                               style: GoogleFonts.cairo(
-                                color: greenColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
+                                color: statusColor,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
@@ -527,7 +478,128 @@ class _RecommendedPlantsScreenState
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 13),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildInfoChip(
+                icon: Icons.spa_outlined,
+                label: PlantDisplayFormatter.care(plant.careLevel),
+              ),
+              _buildInfoChip(
+                icon: Icons.water_drop_outlined,
+                label: PlantDisplayFormatter.water(plant.wateringRequirement),
+              ),
+              _buildInfoChip(
+                icon: Icons.wb_sunny_outlined,
+                label: PlantDisplayFormatter.light(plant.lightRequirement),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          const Divider(color: borderColor, thickness: 1, height: 1),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Text('نسبة التوافق',
+                style: GoogleFonts.cairo(
+                  color: secondaryTextColor,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: LinearProgressIndicator(
+                    value: (score / 100).clamp(0.0, 1.0),
+                    minHeight: 9,
+                    backgroundColor: lightSageColor,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 11),
+              Text('${score.toStringAsFixed(0)}%',
+                textDirection: TextDirection.ltr,
+                style: GoogleFonts.cairo(
+                  color: statusColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text('العوامل المتوافقة',
+            style: GoogleFonts.cairo(
+              color: darkGreenColor,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (matchedFactors.isEmpty)
+            Text('لا يوجد توافق كامل',
+              style: GoogleFonts.cairo(color: secondaryTextColor, fontSize: 12.5),
+            )
+          else
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: matchedFactors.map((factor) =>
+                _factorChip(factor),
+              ).toList(),
+            ),
+          if (partiallyMatchedFactors.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text('توافق جزئي في',
+              style: GoogleFonts.cairo(
+                color: secondaryTextColor,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: partiallyMatchedFactors.map((factor) =>
+                _factorChip(factor, partial: true),
+              ).toList(),
+            ),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 50,
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PlantDetailsScreen(plant: plant),
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: lightSageColor,
+                foregroundColor: darkGreenColor,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Text('عرض التفاصيل',
+                style: GoogleFonts.cairo(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -536,26 +608,69 @@ class _RecommendedPlantsScreenState
     required String label,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFFF0F5ED),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: sageColor),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              style: GoogleFonts.cairo(
-                color: secondaryTextColor,
-                fontSize: 11,
-              ),
+          Icon(icon, size: 17, color: greenColor),
+          const SizedBox(width: 5),
+          Text(label,
+            style: GoogleFonts.cairo(
+              color: darkGreenColor,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Factor labels come directly from RecommendationEngine; only their appearance changes.
+  IconData _factorIcon(String factor) {
+    final normalized = factor.trim().toLowerCase();
+    if (normalized.contains('ري') || normalized.contains('ماء') ||
+        normalized.contains('سقي') || normalized.contains('water')) {
+      return Icons.water_drop_outlined;
+    }
+    if (normalized.contains('إضاءة') || normalized.contains('اضاءة') ||
+        normalized.contains('شمس') || normalized.contains('ضوء') ||
+        normalized.contains('light') || normalized.contains('sun')) {
+      return Icons.wb_sunny_outlined;
+    }
+    if (normalized.contains('عناية') || normalized.contains('care') ||
+        normalized.contains('صيانة')) {
+      return Icons.spa_outlined;
+    }
+    return Icons.check_circle_outline_rounded;
+  }
+
+  Widget _factorChip(String factor, {bool partial = false}) {
+    final accent = partial ? const Color(0xFF8D702B) : greenColor;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: partial ? const Color(0xFFFFF7E8) : const Color(0xFFF0F5ED),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: partial ? const Color(0xFFEADDBB) : borderColor,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_factorIcon(factor), size: 17, color: accent),
+          const SizedBox(width: 5),
+          Text(factor,
+            style: GoogleFonts.cairo(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: partial ? const Color(0xFF765C25) : darkGreenColor,
             ),
           ),
         ],

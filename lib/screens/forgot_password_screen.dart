@@ -1,7 +1,9 @@
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
+
+import '../widgets/ruwa_page_header.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -11,8 +13,24 @@ class ForgotPasswordScreen extends StatefulWidget {
       _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final emailController = TextEditingController();
+class _ForgotPasswordScreenState
+    extends State<ForgotPasswordScreen> {
+  // ==========================================
+  // ألوان رُوى
+  // ==========================================
+  static const Color _green = Color(0xFF315B32);
+  static const Color _dark = Color(0xFF234525);
+  static const Color _background = Color(0xFFFAF9F4);
+  static const Color _border = Color(0xFFDCE4D8);
+  static const Color _muted = Color(0xFF7D8079);
+
+  // ==========================================
+  // متحكم البريد الإلكتروني
+  // ==========================================
+  final TextEditingController emailController =
+      TextEditingController();
+
+  bool _isSending = false;
 
   @override
   void dispose() {
@@ -20,389 +38,423 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
+  // ==========================================
+  // تنسيق النصوص
+  // ==========================================
+  TextStyle _textStyle(
+    double fontSize, {
+    Color color = _dark,
+    FontWeight weight = FontWeight.w500,
+  }) {
+    return GoogleFonts.cairo(
+      fontSize: fontSize,
+      color: color,
+      fontWeight: weight,
+      height: 1.5,
+    );
+  }
+
+  // ==========================================
+  // إظهار الرسائل للمستخدم
+  // ==========================================
   void _showMessage(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        behavior: SnackBarBehavior.floating,
         content: Text(
           message,
           textDirection: TextDirection.rtl,
           textAlign: TextAlign.center,
           style: GoogleFonts.cairo(),
         ),
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
+  // ==========================================
+  // إرسال رابط إعادة تعيين كلمة المرور
+  // ==========================================
+  Future<void> _sendResetLink() async {
+    // منع إرسال طلبين في الوقت نفسه
+    if (_isSending) return;
+
+    final email = emailController.text.trim();
+
+    // التأكد من تعبئة البريد
+    if (email.isEmpty) {
+      _showMessage('يرجى إدخال البريد الإلكتروني');
+      return;
+    }
+
+    // التحقق المبدئي من البريد
+    if (!email.contains('@') || !email.contains('.')) {
+      _showMessage('يرجى إدخال بريد إلكتروني صحيح');
+      return;
+    }
+
+    // إظهار حالة التحميل
+    setState(() => _isSending = true);
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: email,
+      );
+
+      if (!mounted) return;
+
+      _showMessage(
+        'تم إرسال رابط إعادة التعيين إلى بريدك',
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      if (e.code == 'user-not-found') {
+        _showMessage(
+          'لا يوجد حساب بهذا البريد الإلكتروني',
+        );
+      } else {
+        _showMessage('حدث خطأ: ${e.message}');
+      }
+    } catch (_) {
+      if (mounted) {
+        _showMessage(
+          'حدث خطأ غير متوقع، حاول مرة أخرى',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+    }
+  }
+
+  // ==========================================
+  // تصميم حقل البريد الإلكتروني
+  // ==========================================
+  InputDecoration _emailDecoration() {
+    return InputDecoration(
+      hintText: 'أدخل بريدك الإلكتروني',
+
+      // اتجاه عبارة التلميح عربي
+      hintTextDirection: TextDirection.rtl,
+
+      hintStyle: _textStyle(
+        13,
+        color: _muted,
+      ),
+
+      // الأيقونة على يمين الحقل
+      prefixIcon: const Icon(
+        Icons.mail_outline_rounded,
+        color: _green,
+        size: 23,
+      ),
+
+      filled: true,
+      fillColor: Colors.white,
+
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 15,
+      ),
+
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(
+          color: _border,
+          width: 1.2,
+        ),
+      ),
+
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(
+          color: _green,
+          width: 1.8,
+        ),
+      ),
+
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(
+          color: Color(0xFFC44747),
+          width: 1.2,
+        ),
+      ),
+
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(
+          color: Color(0xFFC44747),
+          width: 1.8,
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // واجهة الصفحة
+  // ==========================================
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F4),
-      resizeToAvoidBottomInset: true,
+    final keyboardVisible =
+        MediaQuery.viewInsetsOf(context).bottom > 0;
 
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final width = constraints.maxWidth;
-            final height = constraints.maxHeight;
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: _background,
+        resizeToAvoidBottomInset: true,
 
-            final scaleX = width / 360;
-            final scaleY = height / 800;
-
-            return Stack(
-              children: [
-                // ==========================================
-                // الزخرفة السفلية - في الخلف
-                // ==========================================
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    child: Image.asset(
-                      'assets/images/bottom_decoration.png',
-                      width: width,
-                      fit: BoxFit.fitWidth,
-                      alignment: Alignment.bottomCenter,
-                    ),
+        body: Stack(
+          children: [
+            // ==================================
+            // الزخرفة السفلية
+            // ==================================
+            if (!keyboardVisible)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: Image.asset(
+                    'assets/images/bottom_decoration.png',
+                    width: MediaQuery.sizeOf(context).width,
+                    fit: BoxFit.fitWidth,
+                    alignment: Alignment.bottomCenter,
                   ),
                 ),
+              ),
 
-                // ==========================================
-                // محتوى الصفحة
-                // ==========================================
-                SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  padding: EdgeInsets.only(
-                    left: 24 * scaleX,
-                    right: 24 * scaleX,
-                    top: 18 * scaleY,
-                    bottom: 35 * scaleY,
-                  ),
+            // ==================================
+            // المحتوى
+            // ==================================
+            SafeArea(
+              bottom: false,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
 
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: height - (53 * scaleY),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
                     ),
 
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ==================================
-                        // زر الرجوع
-                        // ==================================
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: Icon(
-                              Icons.arrow_back,
-                              color: const Color(0xFF315B32),
-                              size: 28 * scaleX,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight - 24,
+                      ),
+
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.stretch,
+
+                        children: [
+                          // ==========================
+                          // شريط الرجوع الموحد
+                          // ==========================
+                          const RuwaPageHeader(),
+
+                          const SizedBox(height: 45),
+
+                          // ==========================
+                          // شعار رُوى
+                          // ==========================
+                          Center(
+                            child: Image.asset(
+                              'assets/images/ruwa_logo.png',
+                              width: 185,
+                              fit: BoxFit.contain,
                             ),
                           ),
-                        ),
 
-                        SizedBox(height: 95 * scaleY),
+                          const SizedBox(height: 34),
 
-                        // ==================================
-                        // الشعار
-                        // ==================================
-                        Center(
-                          child: Image.asset(
-                            'assets/images/ruwa_logo.png',
-                            width: 190 * scaleX,
-                            fit: BoxFit.contain,
+                          // ==========================
+                          // عنوان الصفحة
+                          // ==========================
+                          Text(
+                            'نسيت كلمة المرور؟',
+                            textAlign: TextAlign.center,
+                            style: _textStyle(
+                              26,
+                              weight: FontWeight.w800,
+                            ),
                           ),
-                        ),
 
-                        SizedBox(height: 42 * scaleY),
+                          const SizedBox(height: 12),
 
-                        // ==================================
-                        // العنوان
-                        // ==================================
-                        Text(
-                          'نسيت كلمة المرور؟',
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.cairo(
-                            color: const Color(0xFF234525),
-                            fontSize: 27 * scaleX,
-                            fontWeight: FontWeight.w700,
+                          // ==========================
+                          // وصف الصفحة
+                          // ==========================
+                          Text(
+                            'أدخل بريدك الإلكتروني وسنرسل لك '
+                            'رابطًا لإعادة تعيين كلمة المرور.',
+                            textAlign: TextAlign.center,
+                            textDirection: TextDirection.rtl,
+                            style: _textStyle(
+                              14,
+                              color: _muted,
+                            ),
                           ),
-                        ),
 
-                        SizedBox(height: 14 * scaleY),
+                          const SizedBox(height: 34),
 
-                        // ==================================
-                        // الوصف
-                        // ==================================
-                        Text(
-                          'أدخل بريدك الإلكتروني وسنرسل لك رابطاً\nلإعادة تعيين كلمة المرور.',
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.cairo(
-                            color: const Color(0xFF7D8079),
-                            fontSize: 14 * scaleX,
-                            fontWeight: FontWeight.w400,
-                            height: 1.6,
-                          ),
-                        ),
-
-                        SizedBox(height: 30 * scaleY),
-
-                        // ==================================
-                        // عنوان البريد الإلكتروني
-                        // ==================================
-                        Text(
-                          'البريد الإلكتروني',
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.right,
-                          style: GoogleFonts.cairo(
-                            color: const Color(0xFF292D28),
-                            fontSize: 14 * scaleX,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-
-                        SizedBox(height: 7 * scaleY),
-
-                        // ==================================
-                        // حقل البريد
-                        // ==================================
-                        SizedBox(
-                          height: 52 * scaleY,
-                          child: TextField(
-                            controller: emailController,
-                            keyboardType: TextInputType.emailAddress,
+                          // ==========================
+                          // عنوان البريد الإلكتروني
+                          // ==========================
+                          Text(
+                            'البريد الإلكتروني',
                             textDirection: TextDirection.rtl,
                             textAlign: TextAlign.right,
-
-                            style: GoogleFonts.cairo(
-                              color: const Color(0xFF234525),
-                              fontSize: 13 * scaleX,
-                            ),
-
-                            decoration: InputDecoration(
-                              hintText: 'أدخل بريدك الإلكتروني',
-                              hintTextDirection: TextDirection.rtl,
-
-                              hintStyle: GoogleFonts.cairo(
-                                color: const Color(0xFF8A8D87),
-                                fontSize: 13 * scaleX,
-                              ),
-
-                              suffixIcon: Icon(
-                                Icons.mail_outline_rounded,
-                                color: const Color(0xFF315B32),
-                                size: 24 * scaleX,
-                              ),
-
-                              filled: true,
-                              fillColor: Colors.white,
-
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16 * scaleX,
-                              ),
-
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFFDCE4D8),
-                                  width: 1.3,
-                                ),
-                              ),
-
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF315B32),
-                                  width: 1.7,
-                                ),
-                              ),
+                            style: _textStyle(
+                              14,
+                              weight: FontWeight.w700,
                             ),
                           ),
-                        ),
 
-                        SizedBox(height: 28 * scaleY),
+                          const SizedBox(height: 8),
 
-                        // ==================================
-                        // زر إرسال رابط إعادة التعيين
-                        // ==================================
-                        SizedBox(
-                          height: 52 * scaleY,
-                          child: ElevatedButton(
-                                                        onPressed: () async {
-                              final email =
-                                  emailController.text.trim();
+                          // ==========================
+                          // حقل البريد الإلكتروني
+                          // ==========================
+                          TextField(
+                            controller: emailController,
 
-                              // التأكد أن المستخدم كتب البريد
-                              if (email.isEmpty) {
-                                _showMessage(
-                                  'يرجى إدخال البريد الإلكتروني',
-                                );
-                                return;
-                              }
+                            keyboardType:
+                                TextInputType.emailAddress,
 
-                              // تحقق بسيط من شكل البريد
-                              if (!email.contains('@') ||
-                                  !email.contains('.')) {
-                                _showMessage(
-                                  'يرجى إدخال بريد إلكتروني صحيح',
-                                );
-                                return;
-                              }
+                            textInputAction:
+                                TextInputAction.done,
 
-                              try {
-                                await FirebaseAuth.instance
-                                    .sendPasswordResetEmail(email: email);
+                            // يحافظ على ترتيب رموز البريد
+                            textDirection: TextDirection.ltr,
 
-                                _showMessage(
-                                  'تم إرسال رابط إعادة التعيين إلى بريدك',
-                                );
-                              } on FirebaseAuthException catch (e) {
-                                if (e.code == 'user-not-found') {
-                                  _showMessage(
-                                    'لا يوجد حساب بهذا البريد الإلكتروني',
-                                  );
-                                } else {
-                                  _showMessage('حدث خطأ: ${e.message}');
-                                }
-                              } catch (e) {
-                                _showMessage(
-                                  'حدث خطأ غير متوقع، حاول مرة أخرى',
-                                );
+                            // محاذاة ثابتة إلى اليمين
+                            textAlign: TextAlign.right,
+
+                            autocorrect: false,
+                            enableSuggestions: false,
+
+                            onSubmitted: (_) {
+                              if (!_isSending) {
+                                _sendResetLink();
                               }
                             },
 
-                            style: ButtonStyle(
-                              elevation:
-                                  const WidgetStatePropertyAll(0),
+                            style: _textStyle(14),
 
-                              backgroundColor:
-                                  WidgetStateProperty.resolveWith<Color>(
-                                (states) {
-                                  // أثناء الضغط
-                                  if (states.contains(
-                                    WidgetState.pressed,
-                                  )) {
-                                    return const Color(0xFF234525);
-                                  }
+                            decoration: _emailDecoration(),
+                          ),
 
-                                  // عند مرور الماوس
-                                  if (states.contains(
-                                    WidgetState.hovered,
-                                  )) {
-                                    return const Color(0xFF3D6A3E);
-                                  }
+                          const SizedBox(height: 26),
 
-                                  // اللون الطبيعي
-                                  return const Color(0xFF315B32);
-                                },
-                              ),
+                          // ==========================
+                          // زر إرسال رابط الاستعادة
+                          // ==========================
+                          SizedBox(
+                            height: 52,
 
-                              foregroundColor:
-                                  const WidgetStatePropertyAll(
-                                Colors.white,
-                              ),
+                            child: ElevatedButton(
+                              onPressed: _isSending
+                                  ? null
+                                  : _sendResetLink,
 
-                              overlayColor:
-                                  WidgetStateProperty.resolveWith<Color?>(
-                                (states) {
-                                  if (states.contains(
-                                    WidgetState.pressed,
-                                  )) {
-                                    return Colors.white.withValues(
-                                      alpha: 0.10,
-                                    );
-                                  }
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
 
-                                  return null;
-                                },
-                              ),
+                                backgroundColor: _green,
 
-                              shape: WidgetStatePropertyAll(
-                                RoundedRectangleBorder(
+                                disabledBackgroundColor:
+                                    _green.withValues(
+                                  alpha: 0.7,
+                                ),
+
+                                foregroundColor: Colors.white,
+
+                                shape: RoundedRectangleBorder(
                                   borderRadius:
                                       BorderRadius.circular(14),
                                 ),
                               ),
-                            ),
 
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Center(
-                                  child: Text(
-                                    'إرسال رابط إعادة التعيين',
-                                    textDirection: TextDirection.rtl,
-                                    style: GoogleFonts.cairo(
-                                      fontSize: 16 * scaleX,
-                                      fontWeight: FontWeight.w600,
+                              child: _isSending
+                                  ? Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+
+                                      children: [
+                                        const SizedBox(
+                                          width: 21,
+                                          height: 21,
+                                          child:
+                                              CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+
+                                        const SizedBox(width: 11),
+
+                                        Text(
+                                          'جارٍ إرسال الرابط...',
+                                          style: _textStyle(
+                                            14,
+                                            color: Colors.white,
+                                            weight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Text(
+                                      'إرسال رابط إعادة التعيين',
+                                      style: _textStyle(
+                                        16,
+                                        color: Colors.white,
+                                        weight: FontWeight.w700,
+                                      ),
                                     ),
-                                  ),
-                                ),
-
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Icon(
-                                    Icons.arrow_back,
-                                    size: 23 * scaleX,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
-                        ),
 
-                        SizedBox(height: 22 * scaleY),
+                          const SizedBox(height: 18),
 
-                        // ==================================
-                        // العودة إلى تسجيل الدخول
-                        // ==================================
-                        Center(
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
+                          // ==========================
+                          // العودة إلى تسجيل الدخول
+                          // ==========================
+                          Center(
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                              },
 
-                            style: TextButton.styleFrom(
-                              foregroundColor:
-                                  const Color(0xFF315B32),
-                            ),
-
-                            child: Text(
-                              'العودة إلى تسجيل الدخول',
-                              textDirection: TextDirection.rtl,
-                              style: GoogleFonts.cairo(
-                                color: const Color(0xFF315B32),
-                                fontSize: 14 * scaleX,
-                                fontWeight: FontWeight.w600,
-                                decoration:
-                                    TextDecoration.underline,
-                                decorationColor:
-                                    const Color(0xFF315B32),
+                              child: Text(
+                                'العودة إلى تسجيل الدخول',
+                                textAlign: TextAlign.center,
+                                style: _textStyle(
+                                  14,
+                                  color: _green,
+                                  weight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ),
-                        ),
 
-                        // مساحة حتى لا يدخل المحتوى
-                        // داخل الزخرفة السفلية
-                        SizedBox(height: 100 * scaleY),
-                      ],
+                          const SizedBox(height: 100),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            );
-          },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/plant.dart';
 import '../services/garden_service.dart';
 import '../utils/confirm_dialog.dart';
@@ -17,7 +19,8 @@ class PlantDetailsScreen extends StatefulWidget {
   @override
   State<PlantDetailsScreen> createState() => _PlantDetailsScreenState();
 }
-class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
+class _PlantDetailsScreenState extends State<PlantDetailsScreen>
+    with SingleTickerProviderStateMixin {
   static const Color _background = Color(0xFFFAF9F4);
   static const Color _green = Color(0xFF315B32);
   static const Color _darkGreen = Color(0xFF234525);
@@ -25,6 +28,11 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   static const Color _lightSage = Color(0xFFE8F0E4);
   late final Future<List<Map<String, dynamic>>> _careFuture;
   late final Future<String?> _imageFuture;
+  OverlayEntry? _noticeEntry;
+  AnimationController? _noticeController;
+  Timer? _noticeTimer;
+  bool _noticeClosing = false;
+
   bool _isSavingPlant = false;
   bool _isSaved = false;
   final Map<String, Future<String>> _translationFutures = {};
@@ -40,6 +48,17 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     _imageFuture = PlantImageService.instance.imageFor(widget.plant.scientificName);
     _careFuture = _loadCareGuides();
     _loadSavedState();
+  }
+
+  @override
+  void dispose() {
+    _noticeTimer?.cancel();
+    _noticeEntry?.remove();
+    _noticeEntry?.dispose();
+    _noticeEntry = null;
+    _noticeController?.dispose();
+    _noticeController = null;
+    super.dispose();
   }
 
   // نعرف إذا النبتة محفوظة، عشان الزر يكون "إضافة" أو "حذف"
@@ -158,33 +177,132 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     );
   }
 
-  // إشعار أعلى الشاشة (مثل التصميم): أيقونة + رسالة + زر إغلاق
+  // إشعار عائم لا يغيّر ارتفاع الصفحة أو يزحزح محتواها.
+  // يظهر بعد نجاح العملية ويتلاشى بعد 3 ثوانٍ أو عند الضغط على إغلاق.
   void _showMessage(String message, {bool success = true}) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearMaterialBanners();
-    messenger.showMaterialBanner(
-      MaterialBanner(
-        backgroundColor: _lightSage,
-        leading: Icon(
-          success ? Icons.check_circle : Icons.info_outline,
-          color: _green,
-        ),
-        content: Text(
-          message,
+    _removeNoticeImmediately();
+    if (!mounted) return;
+
+    final overlay = Overlay.of(context);
+    final controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+      reverseDuration: const Duration(milliseconds: 220),
+    );
+    _noticeController = controller;
+    _noticeClosing = false;
+
+    final animation = CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    final top = MediaQuery.paddingOf(context).top + 68 + 8;
+
+    final entry = OverlayEntry(
+      builder: (overlayContext) => Positioned(
+        top: top,
+        left: 18,
+        right: 18,
+        child: Directionality(
           textDirection: TextDirection.rtl,
-          style: GoogleFonts.cairo(color: _darkGreen),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: messenger.hideCurrentMaterialBanner,
+          child: FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, -0.35),
+                end: Offset.zero,
+              ).animate(animation),
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: success ? _lightSage : const Color(0xFFFFF3E6),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: success
+                          ? const Color(0xFFC7DCC2)
+                          : const Color(0xFFE7CEAA),
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x19000000),
+                        blurRadius: 14,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(12, 9, 8, 9),
+                    child: Row(
+                      children: [
+                        Icon(
+                          success
+                              ? Icons.check_circle_rounded
+                              : Icons.info_outline_rounded,
+                          color: success ? _green : const Color(0xFF8B6029),
+                          size: 23,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            message,
+                            textAlign: TextAlign.right,
+                            style: GoogleFonts.cairo(
+                              color: _darkGreen,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: 'إغلاق التنبيه',
+                          onPressed: _hideNotice,
+                          icon: const Icon(Icons.close_rounded, size: 21),
+                          color: _darkGreen,
+                          constraints: const BoxConstraints(
+                            minWidth: 48,
+                            minHeight: 48,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
-    Future.delayed(const Duration(seconds: 3), () {
-      messenger.hideCurrentMaterialBanner();
-    });
+    _noticeEntry = entry;
+    overlay.insert(entry);
+    controller.forward();
+    _noticeTimer = Timer(const Duration(seconds: 3), _hideNotice);
+  }
+
+  Future<void> _hideNotice() async {
+    final controller = _noticeController;
+    if (controller == null || _noticeClosing) return;
+    _noticeClosing = true;
+    _noticeTimer?.cancel();
+    _noticeTimer = null;
+    await controller.reverse();
+    if (!mounted || !identical(controller, _noticeController)) return;
+    _removeNoticeImmediately();
+  }
+
+  void _removeNoticeImmediately() {
+    _noticeTimer?.cancel();
+    _noticeTimer = null;
+    _noticeEntry?.remove();
+    _noticeEntry?.dispose();
+    _noticeEntry = null;
+    _noticeController?.dispose();
+    _noticeController = null;
+    _noticeClosing = false;
   }
 
   Future<List<Map<String, dynamic>>> _loadCareGuides() async {
@@ -276,76 +394,116 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     return '';
   }
 
-  Widget _sectionTitle(String title) {
+  Widget _sectionTitle(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
-      child: Text(
-        title,
-        style: GoogleFonts.cairo(
-          fontSize: 19,
-          fontWeight: FontWeight.w800,
-          color: _darkGreen,
-        ),
-      ),
-    );
-  }
-  Widget _requirementCard({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _lightSage),
-      ),
       child: Row(
         children: [
           Container(
-            width: 43,
-            height: 43,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: _lightSage,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(icon, color: _green),
+            child: Icon(icon, size: 20, color: _green),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.cairo(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: GoogleFonts.cairo(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _darkGreen,
-                  ),
-                ),
-              ],
+            child: Text(title,
+              style: GoogleFonts.cairo(
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                color: _darkGreen,
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _requirementCard({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 112),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: const Color(0xFFDCE4D8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: _lightSage,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: _green, size: 21),
+          ),
+          const SizedBox(height: 9),
+          Text(label,
+            style: GoogleFonts.cairo(
+              fontSize: 13.5,
+              color: const Color(0xFF596C59),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(value,
+            softWrap: true,
+            style: GoogleFonts.cairo(
+              fontSize: 15,
+              height: 1.4,
+              fontWeight: FontWeight.w800,
+              color: _darkGreen,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _twoColumns(List<Widget> cards) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final narrow = constraints.maxWidth < 330;
+      if (narrow) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < cards.length; i++) ...[
+              if (i > 0) const SizedBox(height: 10),
+              cards[i],
+            ],
+          ],
+        );
+      }
+      return Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          for (final card in cards)
+            SizedBox(width: (constraints.maxWidth - 10) / 2, child: card),
+        ],
+      );
+    });
+  }
+
   Widget _imageSection() {
     return Container(
-      height: 245,
+      height: 228,
       width: double.infinity,
       decoration: BoxDecoration(
         color: _lightSage,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
       clipBehavior: Clip.antiAlias,
       child: FutureBuilder<String?>(
@@ -362,22 +520,19 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
               child: Icon(Icons.local_florist_outlined, size: 85, color: _sage),
             );
           }
-          return Image.network(
-            imageUrl,
+          return CachedNetworkImage(
+            imageUrl: imageUrl,
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return const Center(
-                child: CircularProgressIndicator(color: _green),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              return const Center(
-                child: Icon(Icons.local_florist_outlined, size: 85, color: _sage),
-              );
-            },
+            maxWidthDiskCache: 1000,
+            fadeInDuration: const Duration(milliseconds: 180),
+            placeholder: (_, __) => const Center(
+              child: CircularProgressIndicator(color: _green),
+            ),
+            errorWidget: (_, __, ___) => const Center(
+              child: Icon(Icons.local_florist_outlined, size: 85, color: _sage),
+            ),
           );
         },
       ),
@@ -435,7 +590,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                 textDirection: TextDirection.rtl,
                 textAlign: TextAlign.right,
                 style: GoogleFonts.cairo(
-                  fontSize: 13,
+                  fontSize: 14,
                   height: 1.8,
                   color: Colors.black87,
                 ),
@@ -449,29 +604,106 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final plant = widget.plant;
+    final requirements = <Widget>[
+      _requirementCard(
+        icon: Icons.water_drop_outlined,
+        label: 'احتياج الري',
+        value: PlantDisplayFormatter.water(plant.wateringRequirement),
+      ),
+      _requirementCard(
+        icon: Icons.wb_sunny_outlined,
+        label: 'احتياج الإضاءة',
+        value: _translateLight(plant.lightRequirement),
+      ),
+      _requirementCard(
+        icon: Icons.spa_outlined,
+        label: 'مستوى العناية',
+        value: PlantDisplayFormatter.care(plant.careLevel),
+      ),
+      if (plant.climateToleranceClass != null)
+        _requirementCard(
+          icon: Icons.thermostat_outlined,
+          label: 'تحمّل المناخ',
+          value: PlantDisplayFormatter.tolerance(plant.climateToleranceClass),
+        ),
+    ];
+    final extras = <Widget>[
+      if (plant.matureHeight != null)
+        _requirementCard(
+          icon: Icons.height_rounded,
+          label: 'الارتفاع عند النضج',
+          value: _arabicRange(plant.matureHeight!),
+        ),
+      if (plant.matureSpread != null)
+        _requirementCard(
+          icon: Icons.open_in_full_rounded,
+          label: 'الانتشار عند النضج',
+          value: _arabicRange(plant.matureSpread!),
+        ),
+      if (plant.minTemperatureC != null || plant.maxTemperatureC != null)
+        _requirementCard(
+          icon: Icons.device_thermostat_outlined,
+          label: 'نطاق درجات الحرارة',
+          value: _temperatureRange(plant),
+        ),
+    ];
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: _background,
         appBar: AppBar(
+          toolbarHeight: 68,
           backgroundColor: _background,
           surfaceTintColor: _background,
           elevation: 0,
+          scrolledUnderElevation: 0,
           centerTitle: true,
+          titleSpacing: 0,
           title: Text(
             'تفاصيل النبات',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.cairo(
               color: _darkGreen,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
-          leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: _darkGreen,
+          leadingWidth: 64,
+          leading: Padding(
+            padding: const EdgeInsetsDirectional.only(start: 12),
+            child: Center(
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Center(
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: _lightSage,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: _green,
+                            size: 25,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
-            onPressed: () => Navigator.pop(context),
           ),
         ),
         body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -479,102 +711,50 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
           builder: (context, snapshot) {
             final guides = snapshot.data ?? <Map<String, dynamic>>[];
             return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+              padding: const EdgeInsetsDirectional.fromSTEB(20, 12, 20, 30),
               children: [
                 _imageSection(),
-                const SizedBox(height: 20),
-                Text(
-                  plant.displayName,
+                const SizedBox(height: 18),
+                Text(plant.displayName,
                   style: GoogleFonts.cairo(
                     fontSize: 25,
+                    height: 1.35,
                     fontWeight: FontWeight.w800,
                     color: _darkGreen,
                   ),
                 ),
-                Text(
-                  plant.scientificName,
+                const SizedBox(height: 3),
+                Text(plant.scientificName,
                   textDirection: TextDirection.ltr,
                   textAlign: TextAlign.right,
                   style: GoogleFonts.cairo(
-                    fontSize: 14,
+                    fontSize: 15,
                     fontStyle: FontStyle.italic,
-                    color: _sage,
+                    color: const Color(0xFF596C59),
                   ),
                 ),
                 const SizedBox(height: 26),
-                _sectionTitle('متطلبات النبات'),
-                _requirementCard(
-                  icon: Icons.water_drop_outlined,
-                  label: 'احتياج الري',
-                  value: PlantDisplayFormatter.water(plant.wateringRequirement),
-                ),
-                const SizedBox(height: 10),
-                _requirementCard(
-                  icon: Icons.wb_sunny_outlined,
-                  label: 'احتياج الإضاءة',
-                  value: _translateLight(
-                    plant.lightRequirement,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _requirementCard(
-                  icon: Icons.spa_outlined,
-                  label: 'مستوى العناية',
-                  value: PlantDisplayFormatter.care(plant.careLevel),
-                ),
-                if (plant.climateToleranceClass != null) ...[
-                  const SizedBox(height: 10),
-                  _requirementCard(
-                    icon: Icons.thermostat_outlined,
-                    label: 'تحمل المناخ',
-                    value: PlantDisplayFormatter.tolerance(plant.climateToleranceClass),
-                  ),
+                _sectionTitle('متطلبات النبات', Icons.eco_outlined),
+                _twoColumns(requirements),
+                if (extras.isNotEmpty) ...[
+                  const SizedBox(height: 27),
+                  _sectionTitle('معلومات إضافية', Icons.info_outline_rounded),
+                  _twoColumns(extras),
                 ],
-                if (plant.matureHeight != null ||
-                    plant.matureSpread != null ||
-                    plant.minTemperatureC != null ||
-                    plant.maxTemperatureC != null) ...[
-                  const SizedBox(height: 26),
-                  _sectionTitle('معلومات إضافية'),
-                  if (plant.matureHeight != null)
-                    _requirementCard(
-                      icon: Icons.height,
-                      label: 'الارتفاع عند النضج',
-                      value: _arabicRange(plant.matureHeight!),
-                    ),
-                  if (plant.matureSpread != null) ...[
-                    const SizedBox(height: 10),
-                    _requirementCard(
-                      icon: Icons.open_in_full,
-                      label: 'الانتشار عند النضج',
-                      value: _arabicRange(plant.matureSpread!),
-                    ),
-                  ],
-                  if (plant.minTemperatureC != null ||
-                      plant.maxTemperatureC != null) ...[
-                    const SizedBox(height: 10),
-                    _requirementCard(
-                      icon: Icons.device_thermostat,
-                      label: 'درجات الحرارة',
-                      value: _temperatureRange(plant),
-                    ),
-                  ],
-                ],
-                const SizedBox(height: 28),
-                _sectionTitle('إرشادات العناية'),
+                const SizedBox(height: 27),
+                _sectionTitle('إرشادات العناية', Icons.menu_book_outlined),
                 if (snapshot.connectionState == ConnectionState.waiting)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    padding: const EdgeInsets.symmetric(vertical: 22),
                     child: Column(
                       children: [
                         const CircularProgressIndicator(color: _green),
                         const SizedBox(height: 12),
-                        Text(
-                          'جارٍ جلب إرشادات العناية بالنبات...',
+                        Text('جارٍ جلب إرشادات العناية بالنبات...',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.cairo(
-                            fontSize: 13,
-                            color: _sage,
+                            fontSize: 14,
+                            color: const Color(0xFF596C59),
                           ),
                         ),
                       ],
@@ -585,40 +765,37 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                 else
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(17),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: _lightSage),
+                      borderRadius: BorderRadius.circular(17),
+                      border: Border.all(color: const Color(0xFFDCE4D8)),
                     ),
-                    child: Text(
-                      'لا توجد إرشادات عناية متوفرة لهذا النبات حاليًا.',
+                    child: Text('لا توجد إرشادات عناية متوفرة لهذا النبات حاليًا.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.cairo(
-                        fontSize: 13,
-                        color: _sage,
+                        fontSize: 14,
+                        color: const Color(0xFF596C59),
                       ),
                     ),
                   ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 27),
+                // The 2D preview is not implemented yet; keep it visibly disabled.
                 SizedBox(
-                  height: 54,
-                  child: ElevatedButton.icon(
+                  height: 52,
+                  child: OutlinedButton.icon(
                     onPressed: null,
-                    icon: const Icon(Icons.view_in_ar_outlined),
-                    label: Text(
-                      'معاينة في حديقتي',
+                    icon: const Icon(Icons.view_in_ar_outlined, size: 21),
+                    label: Text('معاينة في حديقتي',
                       style: GoogleFonts.cairo(
-                        fontWeight: FontWeight.w700,
-                      ),
+                        fontSize: 15, fontWeight: FontWeight.w700),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _green,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: _lightSage,
-                      disabledForegroundColor: _sage,
+                    style: OutlinedButton.styleFrom(
+                      disabledForegroundColor: const Color(0xFF718271),
+                      side: const BorderSide(color: Color(0xFFDCE4D8)),
+                      backgroundColor: const Color(0xFFF0F3ED),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                   ),
@@ -626,29 +803,28 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                 const SizedBox(height: 12),
                 SizedBox(
                   height: 54,
-                  child: OutlinedButton.icon(
-                    onPressed: _isSavingPlant
-                        ? null
-                        : (_isSaved ? _removeFromMyPlants : _addToMyPlants),
-                    icon: Icon(
-                      _isSaved
-                          ? Icons.delete_outline
-                          : Icons.add_circle_outline,
-                    ),
-                    label: Text(
-                      _isSaved ? 'حذف من نباتاتي' : 'إضافة إلى نباتاتي',
+                  child: FilledButton.icon(
+                    onPressed: _isSavingPlant ? null :
+                        (_isSaved ? _removeFromMyPlants : _addToMyPlants),
+                    icon: _isSavingPlant
+                        ? const SizedBox(width: 19, height: 19,
+                            child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                        : Icon(_isSaved ? Icons.delete_outline_rounded
+                            : Icons.add_circle_outline_rounded, size: 22),
+                    label: Text(_isSaved ? 'حذف من نباتاتي' : 'إضافة إلى نباتاتي',
                       style: GoogleFonts.cairo(
-                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor:
-                          _isSaved ? const Color(0xFFB3261E) : _green,
-                      side: BorderSide(
-                        color: _isSaved ? const Color(0xFFB3261E) : _green,
-                      ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _isSaved
+                          ? const Color(0xFF9F342D) : _green,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: const Color(0xFF819880),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                   ),
