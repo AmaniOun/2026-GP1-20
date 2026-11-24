@@ -26,23 +26,35 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState
     extends State<MainNavigationScreen> {
   late int _selectedIndex;
+  late String _name;
+  late String _email;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
+    _name = widget.name;
+    _email = widget.email;
+  }
+
+  void _onProfileChanged(String name, String email) {
+    if (!mounted) return;
+    if (_name == name && _email == email) return;
+    setState(() { _name = name; _email = email; });
   }
 
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomeScreen(name: widget.name, active: _selectedIndex == 0, onSelectTab: (index) => setState(() => _selectedIndex = index)),
+      HomeScreen(name: _name, active: _selectedIndex == 0, onSelectTab: (index) => setState(() => _selectedIndex = index)),
       const SearchScreen(),
       const MyGardenScreen(),
       const _TemporaryPage(title: 'الإشعارات'),
       AccountScreen(
-        name: widget.name,
-        email: widget.email,
+        name: _name,
+        email: _email,
+        active: _selectedIndex == 4,
+        onProfileChanged: _onProfileChanged,
       ),
     ];
 

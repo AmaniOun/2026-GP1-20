@@ -1,6 +1,10 @@
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../utils/ruwa_notice.dart';
 
 import 'welcome_screen.dart';
 import 'account_information_screen.dart';
@@ -9,11 +13,15 @@ import 'settings_screen.dart';
 class AccountScreen extends StatefulWidget {
   final String name;
   final String email;
+  final bool active;
+  final void Function(String name, String email)? onProfileChanged;
 
   const AccountScreen({
     super.key,
     required this.name,
     required this.email,
+    this.active = true,
+    this.onProfileChanged,
   });
 
   @override
@@ -41,6 +49,17 @@ class _AccountScreenState extends State<AccountScreen> {
 
     currentName = widget.name;
     currentEmail = widget.email;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.active) _refreshAccountFromFirebase();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant AccountScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active) {
+      _refreshAccountFromFirebase();
+    }
   }
 
   // ==========================================
@@ -89,8 +108,40 @@ class _AccountScreenState extends State<AccountScreen> {
   // الانتقال إلى معلومات الحساب
   // ==========================================
 
+  // Refresh confirmed email changes (e.g. after the user opens the
+  // verification link), and keep the Firestore email in sync with Firebase Auth.
+  Future<void> _refreshAccountFromFirebase() async {
+    try {
+      final previous = FirebaseAuth.instance.currentUser;
+      if (previous == null) return;
+      await previous.reload();
+      final user = FirebaseAuth.instance.currentUser;
+      if (!mounted || user == null) return;
+
+      final email = user.email ?? currentEmail;
+      final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snapshot = await docRef.get();
+      if (!mounted) return;
+      final name = (snapshot.data()?['full_name'] as String?)?.trim().isNotEmpty == true
+          ? (snapshot.data()!['full_name'] as String).trim()
+          : (user.displayName?.trim().isNotEmpty == true ? user.displayName! : currentName);
+
+      // Only sync an authenticated, verified email after its change was confirmed.
+      if (user.emailVerified && snapshot.data()?['email'] != email) {
+        await docRef.set({'email': email}, SetOptions(merge: true));
+      }
+      if (!mounted) return;
+      if (currentName != name || currentEmail != email) {
+        setState(() { currentName = name; currentEmail = email; });
+        widget.onProfileChanged?.call(name, email);
+      }
+    } catch (_) {
+      // Keep the last displayed values if the network is unavailable.
+    }
+  }
+
   Future<void> _openAccountInformation() async {
-    final result = await Navigator.push(
+    final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (_) => AccountInformationScreen(
@@ -101,14 +152,19 @@ class _AccountScreenState extends State<AccountScreen> {
     );
 
     if (!mounted) return;
-
-    // الحفاظ على سلوك تحديث البيانات الحالي.
-    if (result != null && result is Map) {
-      setState(() {
-        currentName = result['name'] ?? currentName;
-        currentEmail = result['email'] ?? currentEmail;
-      });
+    if (result == null) {
+      // An update may have partially succeeded before a later API error.
+      await _refreshAccountFromFirebase();
+      return;
     }
+    final updatedName = (result['name'] as String?) ?? currentName;
+    final updatedEmail = (result['email'] as String?) ?? currentEmail;
+    setState(() {
+      currentName = updatedName;
+      currentEmail = updatedEmail;
+    });
+    widget.onProfileChanged?.call(updatedName, updatedEmail);
+    RuwaNotice.show(context, 'تم تحديث معلومات الحساب بنجاح', success: true);
   }
 
   // ==========================================
@@ -194,12 +250,22 @@ class _AccountScreenState extends State<AccountScreen> {
 
     if (shouldLogout != true || !mounted) return;
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const WelcomeScreen(),
-      ),
-      (route) => false,
-    );
+    try {
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const WelcomeScreen(),
+        ),
+        (route) => false,
+      );
+    } on FirebaseException catch (_) {
+      if (mounted) RuwaNotice.show(context,
+        'تعذّر تسجيل الخروج. يرجى المحاولة مجددًا.', success: false);
+    } catch (_) {
+      if (mounted) RuwaNotice.show(context,
+        'تعذّر تسجيل الخروج. يرجى المحاولة مجددًا.', success: false);
+    }
   }
 
   // ==========================================

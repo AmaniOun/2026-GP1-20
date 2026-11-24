@@ -1,10 +1,10 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/plant.dart';
 import '../services/garden_service.dart';
 import '../utils/confirm_dialog.dart';
+import '../utils/ruwa_notice.dart';
 import '../services/my_plant_service.dart';
 import '../services/perenual_service.dart';
 import '../services/plant_translation_service.dart';
@@ -19,8 +19,7 @@ class PlantDetailsScreen extends StatefulWidget {
   @override
   State<PlantDetailsScreen> createState() => _PlantDetailsScreenState();
 }
-class _PlantDetailsScreenState extends State<PlantDetailsScreen>
-    with SingleTickerProviderStateMixin {
+class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   static const Color _background = Color(0xFFFAF9F4);
   static const Color _green = Color(0xFF315B32);
   static const Color _darkGreen = Color(0xFF234525);
@@ -28,10 +27,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
   static const Color _lightSage = Color(0xFFE8F0E4);
   late final Future<List<Map<String, dynamic>>> _careFuture;
   late final Future<String?> _imageFuture;
-  OverlayEntry? _noticeEntry;
-  AnimationController? _noticeController;
-  Timer? _noticeTimer;
-  bool _noticeClosing = false;
 
   bool _isSavingPlant = false;
   bool _isSaved = false;
@@ -48,17 +43,6 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
     _imageFuture = PlantImageService.instance.imageFor(widget.plant.scientificName);
     _careFuture = _loadCareGuides();
     _loadSavedState();
-  }
-
-  @override
-  void dispose() {
-    _noticeTimer?.cancel();
-    _noticeEntry?.remove();
-    _noticeEntry?.dispose();
-    _noticeEntry = null;
-    _noticeController?.dispose();
-    _noticeController = null;
-    super.dispose();
   }
 
   // Restore saved state so the action button shows Add or Remove.
@@ -148,34 +132,88 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
     }
   }
 
-  // Show a temporary removal message with an Undo action.
+  // Keep the Undo action at the bottom, but match the shared Ruwa
+  // success-notice design (sage background, green icon, Cairo font).
   void _showRemovedWithUndo() {
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearMaterialBanners();
     messenger.clearSnackBars();
+
     final controller = messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: _darkGreen,
-        duration: const Duration(seconds: 5),
-        content: Text(
-          'تم حذف النبات من نباتاتي',
-          textDirection: TextDirection.rtl,
-          style: GoogleFonts.cairo(color: Colors.white),
+        backgroundColor: _lightSage,
+        elevation: 4,
+        margin: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFFC7DCC2)),
         ),
-        action: SnackBarAction(
-          label: 'تراجع',
-          textColor: const Color(0xFFBFD8B8),
-          onPressed: () async {
-            try {
-              final added = await MyPlantService.instance.addPlant(widget.plant);
-              if (added && mounted) setState(() => _isSaved = true);
-            } catch (_) {}
-          },
+        duration: const Duration(seconds: 5),
+        content: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Row(
+            children: [
+              const Icon(
+                Icons.check_circle_rounded,
+                color: _green,
+                size: 23,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'تم حذف النبات من نباتاتي',
+                  textAlign: TextAlign.right,
+                  style: GoogleFonts.cairo(
+                    color: _darkGreen,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: () async {
+                  messenger.hideCurrentSnackBar();
+                  try {
+                    final added = await MyPlantService.instance
+                        .addPlant(widget.plant);
+                    if (added && mounted) {
+                      setState(() => _isSaved = true);
+                    }
+                  } catch (_) {}
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _green,
+                  backgroundColor: Colors.white,
+                  side: const BorderSide(color: Color(0xFFC7DCC2)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  minimumSize: const Size(0, 40),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'تراجع',
+                  style: GoogleFonts.cairo(
+                    color: _green,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
-    // Close the undo message explicitly after five seconds.
+    // Give the user five seconds to undo the deletion.
     Future.delayed(const Duration(seconds: 5), controller.close);
   }
 
@@ -206,132 +244,9 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
     );
   }
 
-  // Display feedback in an overlay without shifting the page layout.
-  // Dismiss the overlay after three seconds or when the user closes it.
+  // Use the exact shared top notice for plant and account feedback.
   void _showMessage(String message, {bool success = true}) {
-    _removeNoticeImmediately();
-    if (!mounted) return;
-
-    final overlay = Overlay.of(context);
-    final controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 260),
-      reverseDuration: const Duration(milliseconds: 220),
-    );
-    _noticeController = controller;
-    _noticeClosing = false;
-
-    final animation = CurvedAnimation(
-      parent: controller,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
-    final top = MediaQuery.paddingOf(context).top + 68 + 8;
-
-    final entry = OverlayEntry(
-      builder: (overlayContext) => Positioned(
-        top: top,
-        left: 18,
-        right: 18,
-        child: Directionality(
-          textDirection: TextDirection.rtl,
-          child: FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, -0.35),
-                end: Offset.zero,
-              ).animate(animation),
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: success ? _lightSage : const Color(0xFFFFF3E6),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: success
-                          ? const Color(0xFFC7DCC2)
-                          : const Color(0xFFE7CEAA),
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x19000000),
-                        blurRadius: 14,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(12, 9, 8, 9),
-                    child: Row(
-                      children: [
-                        Icon(
-                          success
-                              ? Icons.check_circle_rounded
-                              : Icons.info_outline_rounded,
-                          color: success ? _green : const Color(0xFF8B6029),
-                          size: 23,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            message,
-                            textAlign: TextAlign.right,
-                            style: GoogleFonts.cairo(
-                              color: _darkGreen,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              height: 1.45,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          tooltip: 'إغلاق التنبيه',
-                          onPressed: _hideNotice,
-                          icon: const Icon(Icons.close_rounded, size: 21),
-                          color: _darkGreen,
-                          constraints: const BoxConstraints(
-                            minWidth: 48,
-                            minHeight: 48,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    _noticeEntry = entry;
-    overlay.insert(entry);
-    controller.forward();
-    _noticeTimer = Timer(const Duration(seconds: 3), _hideNotice);
-  }
-
-  Future<void> _hideNotice() async {
-    final controller = _noticeController;
-    if (controller == null || _noticeClosing) return;
-    _noticeClosing = true;
-    _noticeTimer?.cancel();
-    _noticeTimer = null;
-    await controller.reverse();
-    if (!mounted || !identical(controller, _noticeController)) return;
-    _removeNoticeImmediately();
-  }
-
-  void _removeNoticeImmediately() {
-    _noticeTimer?.cancel();
-    _noticeTimer = null;
-    _noticeEntry?.remove();
-    _noticeEntry?.dispose();
-    _noticeEntry = null;
-    _noticeController?.dispose();
-    _noticeController = null;
-    _noticeClosing = false;
+    RuwaNotice.show(context, message, success: success);
   }
 
   Future<List<Map<String, dynamic>>> _loadCareGuides() async {
