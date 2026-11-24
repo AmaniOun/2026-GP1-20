@@ -74,44 +74,140 @@ class MyPlantService {
     }
   }
 
-  // أسباب عدم مناسبة النبتة للحديقة (قائمة فاضية = مناسبة).
-  // نقارن فقط: مقاومة المناخ، مستوى العناية، ومستوى الري.
-  // النباتات اللي قيمتها مركّبة مثل "Low / Moderate" نأخذ أقل قيمة.
+  /// Checks garden-specific constraints using the same matching rules as
+  /// RecommendationEngine. Climate tolerance is deliberately excluded: it
+  /// describes general adaptation to Riyadh rather than this garden's fit.
+  ///
+  /// Missing watering, light, care, or spread information is not presented as
+  /// a confirmed mismatch. Optional watering preference is also skipped.
   List<String> unsuitableReasons(Plant plant, GardenProfile garden) {
     final reasons = <String>[];
 
-    if (plant.climateToleranceClass == 'Sensitive') {
-      reasons.add('حساس لمناخ الرياض');
+    // The engine compares mature spread with the smaller garden dimension.
+    // A missing or unparseable spread cannot establish a space mismatch.
+    final availableSpace = garden.lengthMeters < garden.widthMeters
+        ? garden.lengthMeters
+        : garden.widthMeters;
+    final spread = _parseNumber(plant.matureSpread);
+    if (spread != null && spread > availableSpace) {
+      reasons.add('انتشار النبات عند النضج يتجاوز مساحة الزراعة المتاحة');
     }
 
-    final careWanted = _rank(garden.careLevel.name);
-    final careNeeded = _rank(plant.careLevel);
-    if (careNeeded != null && careNeeded > careWanted!) {
-      reasons.add('يحتاج عناية أعلى من مستوى العناية في حديقتك');
+    // The engine uses exact category matching, not only "needs more water".
+    // An unspecified optional preference produces a partial score in the
+    // engine, so it is NOT treated as a confirmed incompatibility here.
+    if (garden.wateringLevel != null &&
+        _hasKnownValue(plant.wateringRequirement) &&
+        !_sameCategory(
+          plant.wateringRequirement,
+          garden.wateringLevel!.name,
+          low: const ['low', 'low watering', 'low water', 'منخفض', 'قليل', 'قليلة'],
+          medium: const ['medium', 'moderate', 'moderate watering', 'متوسط', 'متوسطة'],
+          high: const ['high', 'high watering', 'high water', 'مرتفع', 'عالي', 'عالية'],
+        )) {
+      reasons.add('متطلبات الري لا تتوافق مع مستوى الري المفضل لحديقتك');
     }
 
-    final waterLevel = garden.wateringLevel;
-    final waterNeeded = _rank(plant.wateringRequirement);
-    if (waterLevel != null &&
-        waterNeeded != null &&
-        waterNeeded > _rank(waterLevel.name)!) {
-      reasons.add('يحتاج ري أكثر من مستوى الري في حديقتك');
+    // Use the same facade-to-sunlight mapping as RecommendationEngine.
+    // Do not treat missing plant light information as a confirmed mismatch.
+    if (_hasKnownValue(plant.lightRequirement)) {
+      final expectedLight = switch (garden.facadeDirection) {
+        FacadeDirection.north => 'shade',
+        FacadeDirection.south || FacadeDirection.west => 'fullsun',
+        FacadeDirection.east => 'partialsun',
+      };
+      if (_normalizeLight(plant.lightRequirement) != expectedLight) {
+        reasons.add('احتياجات الإضاءة لا تتوافق مع اتجاه واجهة حديقتك');
+      }
+    }
+
+    // Match care categories exactly as the recommendation engine does.
+    // Lower care requirements are not automatically scored as a full match.
+    if (_hasKnownValue(plant.careLevel) &&
+        !_sameCategory(
+          plant.careLevel,
+          garden.careLevel.name,
+          low: const ['low', 'easy', 'low maintenance', 'قليل', 'قليلة'],
+          medium: const ['medium', 'moderate', 'متوسط', 'متوسطة'],
+          high: const ['high', 'difficult', 'high maintenance', 'مرتفع', 'عالية'],
+        )) {
+      reasons.add('متطلبات العناية لا تتوافق مع مستوى العناية المفضل لحديقتك');
     }
 
     return reasons;
   }
 
-  // low = 0, moderate/medium = 1, high = 2 (وإذا مركّبة نأخذ الأقل)
-  int? _rank(String value) {
-    final ranks = <int>[];
-    for (final part in value.toLowerCase().split('/')) {
-      final v = part.trim();
-      if (v == 'low') ranks.add(0);
-      if (v == 'moderate' || v == 'medium') ranks.add(1);
-      if (v == 'high') ranks.add(2);
+  /// A general climate caution, not proof that the plant is unsuitable for
+  /// a particular garden. The UI displays this separately from garden issues.
+  bool isClimateSensitive(Plant plant) {
+    final value = _normalize(plant.climateToleranceClass ?? '');
+    return value == 'sensitive' ||
+        value == 'غيرمقاوم' ||
+        value == 'حساس' ||
+        value == 'حساسة';
+  }
+
+  /// Do not invent a mismatch when the source has no usable information.
+  bool _hasKnownValue(String value) {
+    final normalized = _normalize(value);
+    return normalized.isNotEmpty &&
+        !const {'na', 'null', 'unknown', 'notavailable', 'غيرمتوفر'}
+            .contains(normalized);
+  }
+
+  /// Mirrors the engine's low / medium / high category aliases.
+  bool _sameCategory(
+    String first,
+    String second, {
+    required List<String> low,
+    required List<String> medium,
+    required List<String> high,
+  }) {
+    String? category(String value) {
+      final normalized = _normalize(value);
+      if (low.any((v) => _normalize(v) == normalized)) return 'low';
+      if (medium.any((v) => _normalize(v) == normalized)) return 'medium';
+      if (high.any((v) => _normalize(v) == normalized)) return 'high';
+      return null;
     }
-    if (ranks.isEmpty) return null;
-    ranks.sort();
-    return ranks.first;
+
+    final firstCategory = category(first);
+    return firstCategory != null && firstCategory == category(second);
+  }
+
+  /// Mirrors the engine's normalization of Full Sun / Partial Shade / Shade.
+  String _normalizeLight(String value) {
+    final light = _normalize(value);
+    if (const ['shade', 'fullshade', 'ظل', 'ظليل'].contains(light)) {
+      return 'shade';
+    }
+    if (const [
+      'partialsun', 'partialshade', 'partialsunlight', 'شمسجزئية', 'ظلجزئي'
+    ].contains(light)) {
+      return 'partialsun';
+    }
+    if (const [
+      'fullsun', 'directsun', 'fullsunlight', 'شمسكاملة', 'شمس'
+    ].contains(light)) {
+      return 'fullsun';
+    }
+    return light;
+  }
+
+  /// The same basic text normalization used by RecommendationEngine.
+  String _normalize(String value) => value
+      .trim()
+      .toLowerCase()
+      .replaceAll('_', '')
+      .replaceAll('-', '')
+      .replaceAll(' ', '')
+      .replaceAll('/', '');
+
+  /// Supports values such as "2.5 m", "2.5m", or "2.5".
+  double? _parseNumber(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final match = RegExp(r'-?\d+(\.\d+)?').firstMatch(value.trim());
+    if (match == null) return null;
+    return double.tryParse(match.group(0)!);
   }
 }

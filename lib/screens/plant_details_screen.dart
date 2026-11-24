@@ -61,18 +61,20 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
     super.dispose();
   }
 
-  // نعرف إذا النبتة محفوظة، عشان الزر يكون "إضافة" أو "حذف"
+  // Restore saved state so the action button shows Add or Remove.
   Future<void> _loadSavedState() async {
     try {
       final saved = await MyPlantService.instance.isAlreadySaved(widget.plant);
       if (mounted) setState(() => _isSaved = saved);
     } catch (_) {}
   }
+  /// Checks saved state and suitability warnings before persisting the plant.
+  /// Users must explicitly continue when any warning is displayed.
   Future<void> _addToMyPlants() async {
     if (_isSavingPlant) return;
     setState(() => _isSavingPlant = true);
     try {
-      // 1) إذا النبتة محفوظة من قبل، ما نكررها.
+      // Prevent duplicate entries in the current user's saved plants.
       if (await MyPlantService.instance.isAlreadySaved(widget.plant)) {
         if (!mounted) return;
         setState(() => _isSaved = true);
@@ -80,18 +82,27 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
         return;
       }
 
-      // 2) إذا النبتة غير مناسبة للحديقة، نحذّر ونطلب التأكيد.
+      // Evaluate garden compatibility separately from climate sensitivity.
+      // The climate class is a caution, not proof of garden incompatibility.
       final garden = await GardenService.instance.getGarden();
-      if (garden != null) {
-        final reasons =
-            MyPlantService.instance.unsuitableReasons(widget.plant, garden);
-        if (reasons.isNotEmpty) {
-          if (!mounted) return;
-          final confirmed = await _confirmUnsuitable(reasons);
-          if (confirmed != true) return;
-        }
+      final gardenReasons = garden == null
+          ? <String>[]
+          : MyPlantService.instance.unsuitableReasons(widget.plant, garden);
+      final climateWarning =
+          MyPlantService.instance.isClimateSensitive(widget.plant);
+
+      // Show a confirmation dialog if the plant has any known warning.
+      // Canceling keeps the plant out of My Plants.
+      if (gardenReasons.isNotEmpty || climateWarning) {
+        if (!mounted) return;
+        final confirmed = await _confirmUnsuitable(
+          gardenReasons,
+          climateWarning: climateWarning,
+        );
+        if (confirmed != true) return;
       }
 
+      // Save only after warnings have been accepted (if any).
       final added = await MyPlantService.instance.addPlant(widget.plant);
       if (!mounted) return;
       if (added) setState(() => _isSaved = true);
@@ -110,6 +121,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
     }
   }
 
+  // Ask for confirmation, then remove the saved entry from Firestore.
   Future<void> _removeFromMyPlants() async {
     if (_isSavingPlant) return;
     final confirmed = await showConfirmDialog(
@@ -136,7 +148,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
     }
   }
 
-  // رسالة بعد الحذف مع زر "تراجع" (تختفي بعد 5 ثواني)
+  // Show a temporary removal message with an Undo action.
   void _showRemovedWithUndo() {
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearMaterialBanners();
@@ -163,22 +175,39 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
         ),
       ),
     );
-    // فلاتر ما يقفل الرسالة اللي فيها زر تلقائيًا، فنقفلها بعد 5 ثواني
+    // Close the undo message explicitly after five seconds.
     Future.delayed(const Duration(seconds: 5), controller.close);
   }
 
-  Future<bool?> _confirmUnsuitable(List<String> reasons) {
+  /// Explains garden mismatches and climate tolerance in separate sections.
+  /// A climate-sensitive plant may still suit this particular garden.
+  Future<bool?> _confirmUnsuitable(
+    List<String> gardenReasons, {
+    required bool climateWarning,
+  }) {
+    final notes = <String>[
+      if (gardenReasons.isNotEmpty)
+        'عوامل غير متوافقة مع حديقتك:\n'
+        '${gardenReasons.map((reason) => '• $reason').join('\n')}',
+      if (climateWarning)
+        'تنبيه بشأن التحمل المناخي:\n'
+        '• هذا النبات مصنف حساسًا لمناخ الرياض، وقد يحتاج إلى عناية إضافية. '
+        'هذا التصنيف وحده لا يعني أنه غير مناسب لحديقتك.',
+    ];
+
     return showConfirmDialog(
       context,
-      title: 'هذا النبات غير مناسب لحديقتك',
+      title: gardenReasons.isEmpty
+          ? 'تنبيه بشأن التحمل المناخي'
+          : 'تنبيه قبل إضافة النبات',
       message:
-          '${reasons.map((r) => '• $r').join('\n')}\n\nسيتم إضافة النبات إلى نباتاتي عند المتابعة.',
+          '${notes.join('\n\n')}\n\nهل تريد متابعة إضافة النبات إلى نباتاتي؟',
       confirmText: 'متابعة',
     );
   }
 
-  // إشعار عائم لا يغيّر ارتفاع الصفحة أو يزحزح محتواها.
-  // يظهر بعد نجاح العملية ويتلاشى بعد 3 ثوانٍ أو عند الضغط على إغلاق.
+  // Display feedback in an overlay without shifting the page layout.
+  // Dismiss the overlay after three seconds or when the user closes it.
   void _showMessage(String message, {bool success = true}) {
     _removeNoticeImmediately();
     if (!mounted) return;
@@ -361,7 +390,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
         return value;
     }
   }
-  // عرض المدى بصيغة عربية واضحة مع الحفاظ على ترتيب الأرقام الأصلية.
+  // Format numeric ranges in Arabic while preserving their original order.
   String _arabicRange(String value) {
     final text = value.trim();
     final range = RegExp(
@@ -373,7 +402,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
       final from = range.group(1)!;
       final to = range.group(2)!;
       final unit = range.group(3) == null ? '' : ' م';
-      // عزل الأرقام يمنع انعكاس ترتيبها داخل اتجاه الصفحة العربي.
+      // Directional isolation prevents reversed numbers in the RTL layout.
       return 'من \u2066$from\u2069 إلى \u2066$to\u2069$unit';
     }
 
@@ -382,7 +411,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen>
         .replaceAll(RegExp(r'\bm\b', caseSensitive: false), 'م');
   }
 
-  // عزل كل درجة باتجاه LTR يبقي الأرقام ووحدة °C سليمة داخل واجهة RTL.
+  // Keep temperature values and Celsius units readable inside RTL text.
   String _temperatureRange(Plant plant) {
     final min = plant.minTemperatureC;
     final max = plant.maxTemperatureC;
