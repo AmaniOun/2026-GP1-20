@@ -49,7 +49,11 @@ class _MainNavigationScreenState
       HomeScreen(name: _name, active: _selectedIndex == 0, onSelectTab: (index) => setState(() => _selectedIndex = index)),
       const SearchScreen(),
       const MyGardenScreen(),
-      const _TemporaryPage(title: 'الإشعارات'),
+      const _EmptyTabPage(
+        title: 'الإشعارات',
+        icon: Icons.notifications_none_rounded,
+        message: 'لا توجد إشعارات حالياً',
+      ),
       AccountScreen(
         name: _name,
         email: _email,
@@ -122,7 +126,7 @@ class _MainNavigationScreenState
 
     final Color color = selected
         ? const Color(0xFF315B32)
-        : const Color(0xFF7D8079);
+        : const Color(0xFF656E62);
 
     return Expanded(
       child: InkWell(
@@ -145,7 +149,7 @@ class _MainNavigationScreenState
               textDirection: TextDirection.rtl,
               style: GoogleFonts.cairo(
                 color: color,
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: selected
                     ? FontWeight.w700
                     : FontWeight.w400,
@@ -158,27 +162,76 @@ class _MainNavigationScreenState
   }
 }
 
-// صفحات مؤقتة إلى أن يتم إنشاء الصفحات الحقيقية
-class _TemporaryPage extends StatelessWidget {
+// صفحة فارغة بنفس تصميم صفحة الإعدادات (أيقونة + رسالة) إلى أن تُبنى الصفحة الحقيقية
+class _EmptyTabPage extends StatelessWidget {
   final String title;
+  final IconData icon;
+  final String message;
 
-  const _TemporaryPage({
+  const _EmptyTabPage({
     required this.title,
+    required this.icon,
+    required this.message,
   });
+
+  static const Color _green = Color(0xFF315B32);
+  static const Color _darkGreen = Color(0xFF234525);
+  static const Color _lightSage = Color(0xFFE8F0E4);
+  static const Color _muted = Color(0xFF656E62);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F4),
-      body: SafeArea(
-        child: Center(
-          child: Text(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAF9F4),
+        appBar: AppBar(
+          toolbarHeight: 68,
+          backgroundColor: const Color(0xFFFAF9F4),
+          surfaceTintColor: const Color(0xFFFAF9F4),
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          automaticallyImplyLeading: false,
+          centerTitle: true,
+          title: Text(
             title,
-            textDirection: TextDirection.rtl,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.cairo(
-              color: const Color(0xFF234525),
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
+              color: _darkGreen,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: _lightSage,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Icon(icon, color: _green, size: 30),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.cairo(
+                      color: _muted,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

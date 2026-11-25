@@ -60,14 +60,52 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => Scaffold(
+        builder: (context) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
           backgroundColor: _background,
+          // Same back button as every other Ruwa page (sage rounded square).
           appBar: AppBar(
+            toolbarHeight: 68,
             backgroundColor: _background,
+            surfaceTintColor: _background,
             elevation: 0,
-            foregroundColor: _darkGreen,
+            scrolledUnderElevation: 0,
+            leadingWidth: 64,
+            leading: Padding(
+              padding: const EdgeInsetsDirectional.only(start: 12),
+              child: Center(
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Center(
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: _lightSage,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: Icon(Icons.arrow_forward_ios_rounded,
+                                color: _green, size: 25),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
           body: const SearchScreen(),
+          ),
         ),
       ),
     );
