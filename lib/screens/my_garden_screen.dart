@@ -14,6 +14,7 @@ import 'plant_details_screen.dart';
 import '../models/plant.dart';
 import '../services/my_plant_service.dart';
 import '../services/recommendation_engine.dart';
+import '../utils/ruwa_notice.dart';
 class MyGardenScreen extends StatefulWidget {
   const MyGardenScreen({super.key});
   @override
@@ -193,19 +194,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
   }
   void _showLocationMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          textDirection: TextDirection.rtl,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.cairo(),
-        ),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
-      ),
-    );
+    RuwaNotice.show(context, message, success: false);
   }
   // UI spacing and typography follow the same visual language as Home.
   static const Color _green = Color(0xFF315B32);

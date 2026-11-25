@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/garden_profile.dart';
 import '../services/garden_service.dart';
+import '../utils/ruwa_notice.dart';
 
 // ==========================================
 // شاشة إعداد الحديقة
@@ -108,20 +109,9 @@ class _SetupGardenScreenState
   // إظهار رسالة للمستخدم
   // ==========================================
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          textDirection: TextDirection.rtl,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.cairo(),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  void _showMessage(String message, {bool success = false}) {
+    if (!mounted) return;
+    RuwaNotice.show(context, message, success: success);
   }
 
   // ==========================================
@@ -281,6 +271,7 @@ class _SetupGardenScreenState
       isEditMode
           ? 'تم تحديث بيانات الحديقة'
           : 'تم حفظ بيانات الحديقة',
+      success: true,
     );
 
     Navigator.pop(context, garden);

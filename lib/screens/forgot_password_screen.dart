@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../widgets/ruwa_page_header.dart';
+import '../utils/ruwa_notice.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -57,22 +58,9 @@ class _ForgotPasswordScreenState
   // ==========================================
   // إظهار الرسائل للمستخدم
   // ==========================================
-  void _showMessage(String message) {
+  void _showMessage(String message, {bool success = false}) {
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(
-          message,
-          textDirection: TextDirection.rtl,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.cairo(),
-        ),
-      ),
-    );
+    RuwaNotice.show(context, message, success: success);
   }
 
   // ==========================================
@@ -108,6 +96,7 @@ class _ForgotPasswordScreenState
 
       _showMessage(
         'تم إرسال رابط إعادة التعيين إلى بريدك',
+        success: true,
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -181,7 +170,7 @@ class _ForgotPasswordScreenState
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(
-          color: Color(0xFFC44747),
+          color: RuwaNotice.warnAccent,
           width: 1.2,
         ),
       ),
@@ -189,7 +178,7 @@ class _ForgotPasswordScreenState
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(
-          color: Color(0xFFC44747),
+          color: RuwaNotice.warnAccent,
           width: 1.8,
         ),
       ),

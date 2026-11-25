@@ -7,6 +7,7 @@ import '../services/my_plant_service.dart';
 import '../utils/confirm_dialog.dart';
 import 'plant_details_screen.dart';
 import 'search_screen.dart';
+import '../utils/ruwa_notice.dart';
 
 // ==========================================
 // صفحة "نباتاتي" (حسب التصميم):
@@ -404,42 +405,25 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
       if (!mounted) return;
       _reload();
 
-      final messenger = ScaffoldMessenger.of(context);
-      messenger.clearSnackBars();
-      final controller = messenger.showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: _darkGreen,
-          duration: const Duration(seconds: 5),
-          content: Text(
-            'تم حذف ${plant.displayName} من نباتاتي',
-            textDirection: TextDirection.rtl,
-            style: GoogleFonts.cairo(color: Colors.white),
-          ),
-          action: SnackBarAction(
-            label: 'تراجع',
-            textColor: const Color(0xFFBFD8B8),
-            onPressed: () async {
-              try {
-                await MyPlantService.instance.addPlant(plant);
-              } catch (_) {}
-              if (mounted) _reload();
-            },
-          ),
-        ),
+      RuwaNotice.show(
+        context,
+        'تم حذف ${plant.displayName} من نباتاتي',
+        success: true,
+        actionLabel: 'تراجع',
+        duration: const Duration(seconds: 5),
+        onAction: () async {
+          try {
+            await MyPlantService.instance.addPlant(plant);
+          } catch (_) {}
+          if (mounted) _reload();
+        },
       );
-      // فلاتر ما يقفل الرسالة اللي فيها زر تلقائيًا، فنقفلها بعد 5 ثواني
-      Future.delayed(const Duration(seconds: 5), controller.close);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'تعذر حذف النبات، يرجى المحاولة مرة أخرى',
-            textDirection: TextDirection.rtl,
-            style: GoogleFonts.cairo(),
-          ),
-        ),
+      RuwaNotice.show(
+        context,
+        'تعذر حذف النبات، يرجى المحاولة مرة أخرى',
+        success: false,
       );
     }
   }

@@ -8,6 +8,7 @@ import 'activation_screen.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 import 'main_navigation_screen.dart';
+import '../utils/ruwa_notice.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -64,22 +65,9 @@ class _LoginScreenState extends State<LoginScreen> {
   // ==========================================
   // رسائل المستخدم
   // ==========================================
-  void _showMessage(String message) {
+  void _showMessage(String message, {bool success = false}) {
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(
-          message,
-          textDirection: TextDirection.rtl,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.cairo(),
-        ),
-      ),
-    );
+    RuwaNotice.show(context, message, success: success);
   }
 
   // ==========================================
@@ -257,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(
-          color: Color(0xFFC44747),
+          color: RuwaNotice.warnAccent,
           width: 1.2,
         ),
       ),
@@ -265,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(
-          color: Color(0xFFC44747),
+          color: RuwaNotice.warnAccent,
           width: 1.8,
         ),
       ),

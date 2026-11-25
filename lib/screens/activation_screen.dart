@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/ruwa_page_header.dart';
 import 'login_screen.dart';
 import 'main_navigation_screen.dart';
+import '../utils/ruwa_notice.dart';
 
 class ActivationScreen extends StatefulWidget {
   const ActivationScreen({super.key});
@@ -44,8 +45,7 @@ enum _CheckStatus {
   needsAuthentication,
 }
 
-class _ActivationScreenState extends State<ActivationScreen>
-    with SingleTickerProviderStateMixin {
+class _ActivationScreenState extends State<ActivationScreen> {
   static const _green = Color(0xFF315B32);
   static const _dark = Color(0xFF234525);
   static const _background = Color(0xFFFAF9F4);
@@ -56,11 +56,6 @@ class _ActivationScreenState extends State<ActivationScreen>
 
   Timer? _pollTimer;
   Timer? _cooldownTimer;
-  Timer? _noticeTimer;
-
-  OverlayEntry? _noticeEntry;
-  AnimationController? _noticeController;
-  bool _noticeClosing = false;
 
   Future<_CheckStatus>? _ongoingCheck;
 
@@ -108,7 +103,6 @@ class _ActivationScreenState extends State<ActivationScreen>
   void dispose() {
     _pollTimer?.cancel();
     _cooldownTimer?.cancel();
-    _removeNotice();
     super.dispose();
   }
 
@@ -134,152 +128,7 @@ class _ActivationScreenState extends State<ActivationScreen>
     bool success = false,
   }) {
     if (!mounted) return;
-
-    _removeNotice();
-
-    final controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 260),
-      reverseDuration: const Duration(milliseconds: 220),
-    );
-
-    _noticeController = controller;
-    _noticeClosing = false;
-
-    final animation = CurvedAnimation(
-      parent: controller,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
-
-    final entry = OverlayEntry(
-      builder: (overlayContext) => Positioned(
-        top: MediaQuery.paddingOf(overlayContext).top + 76,
-        left: 18,
-        right: 18,
-        child: Directionality(
-          textDirection: TextDirection.rtl,
-          child: FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, -0.35),
-                end: Offset.zero,
-              ).animate(animation),
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: success
-                        ? _lightGreen
-                        : const Color(0xFFFFF3E6),
-                    borderRadius:
-                        BorderRadius.circular(14),
-                    border: Border.all(
-                      color: success
-                          ? const Color(0xFFC7DCC2)
-                          : const Color(0xFFE7CEAA),
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x19000000),
-                        blurRadius: 14,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  padding:
-                      const EdgeInsetsDirectional.fromSTEB(
-                    12, 8, 8, 8,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        success
-                            ? Icons.check_circle_rounded
-                            : Icons.info_outline_rounded,
-                        color: success ? _green : _amber,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          message,
-                          textAlign: TextAlign.right,
-                          style: GoogleFonts.cairo(
-                            color: _dark,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'إغلاق التنبيه',
-                        onPressed: _hideNotice,
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          size: 20,
-                        ),
-                        color: _dark,
-                        constraints: const BoxConstraints(
-                          minWidth: 48,
-                          minHeight: 48,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    _noticeEntry = entry;
-    Overlay.of(context).insert(entry);
-
-    controller.forward();
-
-    _noticeTimer = Timer(
-      const Duration(seconds: 3),
-      _hideNotice,
-    );
-  }
-
-  Future<void> _hideNotice() async {
-    final controller = _noticeController;
-
-    if (controller == null || _noticeClosing) return;
-
-    _noticeClosing = true;
-    _noticeTimer?.cancel();
-
-    try {
-      await controller.reverse();
-    } on TickerCanceled {
-      return;
-    }
-
-    if (mounted &&
-        identical(controller, _noticeController)) {
-      _removeNotice();
-    }
-  }
-
-  void _removeNotice() {
-    _noticeTimer?.cancel();
-    _noticeTimer = null;
-
-    _noticeEntry?.remove();
-    _noticeEntry?.dispose();
-    _noticeEntry = null;
-
-    _noticeController?.dispose();
-    _noticeController = null;
-
-    _noticeClosing = false;
+    RuwaNotice.show(context, message, success: success);
   }
 
   // ==========================================
@@ -440,7 +289,7 @@ class _ActivationScreenState extends State<ActivationScreen>
     });
 
     _pollTimer?.cancel();
-    _removeNotice();
+    RuwaNotice.dismiss();
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
@@ -1167,7 +1016,7 @@ class _ActivationScreenState extends State<ActivationScreen>
 
       if (!mounted) return;
 
-      _removeNotice();
+      RuwaNotice.dismiss();
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(

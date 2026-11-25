@@ -10,6 +10,7 @@ import '../services/perenual_service.dart';
 import '../services/plant_translation_service.dart';
 import '../services/plant_image_service.dart';
 import '../utils/plant_display_formatter.dart';
+import 'my_plants_screen.dart';
 class PlantDetailsScreen extends StatefulWidget {
   final Plant plant;
   const PlantDetailsScreen({
@@ -90,12 +91,24 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
       final added = await MyPlantService.instance.addPlant(widget.plant);
       if (!mounted) return;
       if (added) setState(() => _isSaved = true);
-      _showMessage(
-        added
-            ? 'تمت إضافة النبات إلى نباتاتي بنجاح'
-            : 'هذا النبات موجود في نباتاتي من قبل',
-        success: added,
-      );
+      if (added) {
+        // Same shared notice, with a quick shortcut to the My Plants page.
+        RuwaNotice.show(
+          context,
+          'تمت إضافة النبات إلى نباتاتي بنجاح',
+          success: true,
+          actionLabel: 'عرض',
+          duration: const Duration(seconds: 5),
+          onAction: () {
+            if (!mounted) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MyPlantsScreen()),
+            );
+          },
+        );
+      } else {
+        _showMessage('هذا النبات موجود في نباتاتي من قبل', success: false);
+      }
     } catch (error) {
       debugPrint('Add to My Plants error: $error');
       if (!mounted) return;
@@ -132,89 +145,23 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     }
   }
 
-  // Keep the Undo action at the bottom, but match the shared Ruwa
-  // success-notice design (sage background, green icon, Cairo font).
+  // Same shared Ruwa notice as every other screen, with an Undo action.
   void _showRemovedWithUndo() {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearMaterialBanners();
-    messenger.clearSnackBars();
-
-    final controller = messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: _lightSage,
-        elevation: 4,
-        margin: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: Color(0xFFC7DCC2)),
-        ),
-        duration: const Duration(seconds: 5),
-        content: Directionality(
-          textDirection: TextDirection.rtl,
-          child: Row(
-            children: [
-              const Icon(
-                Icons.check_circle_rounded,
-                color: _green,
-                size: 23,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'تم حذف النبات من نباتاتي',
-                  textAlign: TextAlign.right,
-                  style: GoogleFonts.cairo(
-                    color: _darkGreen,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    height: 1.45,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: () async {
-                  messenger.hideCurrentSnackBar();
-                  try {
-                    final added = await MyPlantService.instance
-                        .addPlant(widget.plant);
-                    if (added && mounted) {
-                      setState(() => _isSaved = true);
-                    }
-                  } catch (_) {}
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _green,
-                  backgroundColor: Colors.white,
-                  side: const BorderSide(color: Color(0xFFC7DCC2)),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  minimumSize: const Size(0, 40),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'تراجع',
-                  style: GoogleFonts.cairo(
-                    color: _green,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    RuwaNotice.show(
+      context,
+      'تم حذف النبات من نباتاتي',
+      success: true,
+      actionLabel: 'تراجع',
+      duration: const Duration(seconds: 5),
+      onAction: () async {
+        try {
+          final added = await MyPlantService.instance.addPlant(widget.plant);
+          if (added && mounted) {
+            setState(() => _isSaved = true);
+          }
+        } catch (_) {}
+      },
     );
-    // Give the user five seconds to undo the deletion.
-    Future.delayed(const Duration(seconds: 5), controller.close);
   }
 
   /// Explains garden mismatches and climate tolerance in separate sections.

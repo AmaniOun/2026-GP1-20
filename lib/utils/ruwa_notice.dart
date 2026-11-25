@@ -17,11 +17,20 @@ class RuwaNotice {
   static const _green = Color(0xFF315B32);
   static const _darkGreen = Color(0xFF234525);
   static const _lightSage = Color(0xFFE8F0E4);
+  // Warning / error colours: one calm terracotta palette used by the
+  // notice and by every field-level error in the app.
+  static const warnBg = Color(0xFFFCF1EB);
+  static const warnBorder = Color(0xFFEFD3C4);
+  static const warnAccent = Color(0xFFC8765A);
+  static const warnText = Color(0xFF6E3B28);
 
   static void show(
     BuildContext context,
     String message, {
     bool success = true,
+    String? actionLabel,
+    VoidCallback? onAction,
+    Duration duration = const Duration(seconds: 3),
   }) {
     _clearImmediately();
     if (!context.mounted) return;
@@ -61,12 +70,12 @@ class RuwaNotice {
                 color: Colors.transparent,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: success ? _lightSage : const Color(0xFFFFF3E6),
+                    color: success ? _lightSage : warnBg,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: success
                           ? const Color(0xFFC7DCC2)
-                          : const Color(0xFFE7CEAA),
+                          : warnBorder,
                     ),
                     boxShadow: const [
                       BoxShadow(
@@ -83,8 +92,8 @@ class RuwaNotice {
                         Icon(
                           success
                               ? Icons.check_circle_rounded
-                              : Icons.info_outline_rounded,
-                          color: success ? _green : const Color(0xFF8B6029),
+                              : Icons.error_outline_rounded,
+                          color: success ? _green : warnAccent,
                           size: 23,
                         ),
                         const SizedBox(width: 10),
@@ -93,13 +102,43 @@ class RuwaNotice {
                             message,
                             textAlign: TextAlign.right,
                             style: GoogleFonts.cairo(
-                              color: _darkGreen,
+                              color: success ? _darkGreen : warnText,
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                               height: 1.45,
                             ),
                           ),
                         ),
+                        if (actionLabel != null && onAction != null) ...[
+                          const SizedBox(width: 6),
+                          OutlinedButton(
+                            onPressed: () {
+                              _hide();
+                              onAction();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _green,
+                              backgroundColor: Colors.white,
+                              side: const BorderSide(color: Color(0xFFC7DCC2)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              minimumSize: const Size(0, 40),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              actionLabel,
+                              style: GoogleFonts.cairo(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(width: 4),
                         IconButton(
                           tooltip: 'إغلاق التنبيه',
@@ -124,8 +163,11 @@ class RuwaNotice {
     _entry = entry;
     overlay.insert(entry);
     controller.forward();
-    _timer = Timer(const Duration(seconds: 3), _hide);
+    _timer = Timer(duration, _hide);
   }
+
+  /// Closes the current notice immediately (used when a screen is replaced).
+  static void dismiss() => _clearImmediately();
 
   static Future<void> _hide() async {
     final controller = _controller;

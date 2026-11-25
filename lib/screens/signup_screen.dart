@@ -1,5 +1,4 @@
 
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/ruwa_page_header.dart';
 import 'activation_screen.dart';
 import 'login_screen.dart';
+import '../utils/ruwa_notice.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -16,15 +16,14 @@ class SignupScreen extends StatefulWidget {
   State<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen>
-    with SingleTickerProviderStateMixin {
+class _SignupScreenState extends State<SignupScreen> {
   static const Color _green = Color(0xFF315B32);
   static const Color _dark = Color(0xFF234525);
   static const Color _background = Color(0xFFFAF9F4);
   static const Color _border = Color(0xFFDCE4D8);
   static const Color _muted = Color(0xFF7D8079);
   static const Color _lightGreen = Color(0xFFE8F0E4);
-  static const Color _red = Color(0xFFC44747);
+  static const Color _red = RuwaNotice.warnAccent;
 
   final TextEditingController nameController =
       TextEditingController();
@@ -43,21 +42,9 @@ class _SignupScreenState extends State<SignupScreen>
   bool _confirmTouched = false;
   bool _showErrors = false;
 
-  // ==========================================
-  // حالة التنبيه العائم
-  // ==========================================
-  OverlayEntry? _noticeEntry;
-  AnimationController? _noticeController;
-  Timer? _noticeTimer;
-  bool _noticeClosing = false;
 
   @override
   void dispose() {
-    _noticeTimer?.cancel();
-    _noticeEntry?.remove();
-    _noticeEntry?.dispose();
-    _noticeController?.dispose();
-
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
@@ -86,166 +73,8 @@ class _SignupScreenState extends State<SignupScreen>
     String message, {
     bool success = false,
   }) {
-    _removeNoticeImmediately();
-
     if (!mounted) return;
-
-    final overlay = Overlay.of(context);
-
-    final controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 260),
-      reverseDuration: const Duration(milliseconds: 220),
-    );
-
-    _noticeController = controller;
-    _noticeClosing = false;
-
-    final animation = CurvedAnimation(
-      parent: controller,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
-
-    final top = MediaQuery.paddingOf(context).top + 68 + 8;
-
-    final entry = OverlayEntry(
-      builder: (overlayContext) {
-        return Positioned(
-          top: top,
-          left: 18,
-          right: 18,
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, -0.35),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: success
-                          ? _lightGreen
-                          : const Color(0xFFFFF3E6),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: success
-                            ? const Color(0xFFC7DCC2)
-                            : const Color(0xFFE7CEAA),
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x19000000),
-                          blurRadius: 14,
-                          offset: Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                        12, 9, 8, 9,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            success
-                                ? Icons.check_circle_rounded
-                                : Icons.info_outline_rounded,
-                            color: success
-                                ? _green
-                                : const Color(0xFF8B6029),
-                            size: 23,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              message,
-                              textDirection: TextDirection.rtl,
-                              textAlign: TextAlign.right,
-                              style: GoogleFonts.cairo(
-                                color: _dark,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                height: 1.45,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            tooltip: 'إغلاق التنبيه',
-                            onPressed: _hideNotice,
-                            icon: const Icon(
-                              Icons.close_rounded,
-                              size: 21,
-                            ),
-                            color: _dark,
-                            constraints: const BoxConstraints(
-                              minWidth: 48,
-                              minHeight: 48,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    _noticeEntry = entry;
-    overlay.insert(entry);
-
-    controller.forward();
-
-    _noticeTimer = Timer(
-      const Duration(seconds: 3),
-      _hideNotice,
-    );
-  }
-
-  Future<void> _hideNotice() async {
-    final controller = _noticeController;
-
-    if (controller == null || _noticeClosing) return;
-
-    _noticeClosing = true;
-    _noticeTimer?.cancel();
-    _noticeTimer = null;
-
-    try {
-      await controller.reverse();
-    } on TickerCanceled {
-      return;
-    }
-
-    if (!mounted ||
-        !identical(controller, _noticeController)) {
-      return;
-    }
-
-    _removeNoticeImmediately();
-  }
-
-  void _removeNoticeImmediately() {
-    _noticeTimer?.cancel();
-    _noticeTimer = null;
-
-    _noticeEntry?.remove();
-    _noticeEntry?.dispose();
-    _noticeEntry = null;
-
-    _noticeController?.dispose();
-    _noticeController = null;
-
-    _noticeClosing = false;
+    RuwaNotice.show(context, message, success: success);
   }
 
   // ==========================================
@@ -535,42 +364,42 @@ class _SignupScreenState extends State<SignupScreen>
   Widget _rule(String text, bool completed) {
     final untouched = !_passwordTouched;
 
-    final color = untouched
-        ? _green
+    // Neutral grey before typing, strong green when met, red when missing.
+    final Color color = untouched
+        ? const Color(0xFF8A9688)
         : completed
             ? _green
             : _red;
 
-    final background = untouched || completed
-        ? _lightGreen
-        : const Color(0xFFFFECEC);
+    final bool met = !untouched && completed;
 
+    // One single circle: empty before typing, filled green with a check when
+    // met, red outline with a cross when missing.
     return Row(
       children: [
         Container(
-          width: 22,
-          height: 22,
+          width: 20,
+          height: 20,
           decoration: BoxDecoration(
-            color: background,
+            color: met ? _green : Colors.transparent,
             shape: BoxShape.circle,
+            border: met ? null : Border.all(color: color, width: 1.4),
           ),
-          child: Icon(
-            untouched
-                ? Icons.circle_outlined
-                : completed
-                    ? Icons.check_rounded
-                    : Icons.close_rounded,
-            color: color,
-            size: 15,
-          ),
+          child: untouched
+              ? null
+              : Icon(
+                  met ? Icons.check_rounded : Icons.close_rounded,
+                  color: met ? Colors.white : color,
+                  size: 13,
+                ),
         ),
-        const SizedBox(width: 9),
+        const SizedBox(width: 7),
         Expanded(
           child: Text(
             text,
             style: _style(
-              12,
-              color: color,
+              12.5,
+              color: untouched ? _dark : color,
               weight: FontWeight.w600,
             ),
           ),
@@ -579,9 +408,10 @@ class _SignupScreenState extends State<SignupScreen>
     );
   }
 
+  // Compact 2x2 grid, kept directly under the password field.
   Widget _passwordRequirements() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -590,23 +420,20 @@ class _SignupScreenState extends State<SignupScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'متطلبات كلمة المرور',
-            style: _style(
-              13,
-              weight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Expanded(child: _rule('6 خانات على الأقل', _minLength)),
+              const SizedBox(width: 10),
+              Expanded(child: _rule('حرف واحد على الأقل', _hasLetter)),
+            ],
           ),
-          const SizedBox(height: 11),
-          _rule('6 خانات على الأقل', _minLength),
           const SizedBox(height: 8),
-          _rule('حرف واحد على الأقل', _hasLetter),
-          const SizedBox(height: 8),
-          _rule('رقم واحد على الأقل', _hasNumber),
-          const SizedBox(height: 8),
-          _rule(
-            'رمز خاص مثل @ أو # أو !',
-            _hasSymbol,
+          Row(
+            children: [
+              Expanded(child: _rule('رقم واحد على الأقل', _hasNumber)),
+              const SizedBox(width: 10),
+              Expanded(child: _rule('رمز خاص (@ # !)', _hasSymbol)),
+            ],
           ),
         ],
       ),
