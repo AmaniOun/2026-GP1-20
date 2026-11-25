@@ -38,10 +38,13 @@ class RuwaPageHeader extends StatelessWidget {
                     child: const SizedBox(
                       width: 44,
                       height: 44,
-                      child: Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 25,
-                        color: _green,
+                      child: Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 25,
+                          color: _green,
+                        ),
                       ),
                     ),
                   ),
