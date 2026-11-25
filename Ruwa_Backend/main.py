@@ -29,29 +29,6 @@ VALID_DIRECTIONS = ["north", "south", "east", "west"]
 def health_check():
     return {"status": "Ruwa backend is running"}
 
-from firebase_admin import auth
-
-@app.post("/signup")
-def signup(email: str, password: str, full_name: str):
-    try:
-        # Step 1: create the login credentials in Firebase Authentication
-        user_record = auth.create_user(
-            email=email,
-            password=password
-        )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not create account: {str(e)}")
-
-    # Step 2: create their profile document in Firestore, using the same UID
-    user_data = {
-        "full_name": full_name,
-        "email": email
-    }
-    db.collection("users").document(user_record.uid).set(user_data)
-
-    return {"message": "Account created", "uid": user_record.uid}
-
-    
 
 @app.get("/users/{user_id}")
 def get_user(user_id: str):
