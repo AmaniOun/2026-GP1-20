@@ -1,7 +1,6 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../models/garden_profile.dart';
 import '../models/plant.dart';
 
 class PlantService {
@@ -46,45 +45,6 @@ class PlantService {
     }).toList();
 
     return _cache!;
-  }
-
-  Future<List<Plant>> recommendForGarden(
-    GardenProfile garden, {
-    int limit = 10,
-  }) async {
-    final all = await loadPlants();
-
-    final expectedCare =
-        _careForPreference(garden.careLevel.arabicLabel);
-
-    final scored = all
-        .where((p) => p.arabicName.isNotEmpty)
-        .map((p) {
-      int score = 0;
-
-      if (p.careLevel == expectedCare) score += 2;
-      if (p.climateToleranceClass == 'Tolerant') score += 2;
-      if (p.climateToleranceClass == 'Sensitive') score -= 2;
-
-      return MapEntry(p, score);
-    }).toList();
-
-    scored.sort((a, b) => b.value.compareTo(a.value));
-
-    return scored.take(limit).map((e) => e.key).toList();
-  }
-
-  String _careForPreference(String careLevelArabicLabel) {
-    switch (careLevelArabicLabel) {
-      case 'قليلة':
-        return 'Low';
-
-      case 'عالية':
-        return 'High';
-
-      default:
-        return 'Moderate';
-    }
   }
 
   // Search by full or partial Arabic or scientific name.
