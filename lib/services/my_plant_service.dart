@@ -93,20 +93,17 @@ class MyPlantService {
       reasons.add('انتشار النبات عند النضج يتجاوز مساحة الزراعة المتاحة');
     }
 
-    // The engine uses exact category matching, not only "needs more water".
-    // An unspecified optional preference produces a partial score in the
-    // engine, so it is NOT treated as a confirmed incompatibility here.
-    if (garden.wateringLevel != null &&
-        _hasKnownValue(plant.wateringRequirement) &&
-        !_sameCategory(
-          plant.wateringRequirement,
-          garden.wateringLevel!.name,
-          low: const ['low', 'low watering', 'low water', 'منخفض', 'قليل', 'قليلة'],
-          medium: const ['medium', 'moderate', 'moderate watering', 'متوسط', 'متوسطة'],
-          high: const ['high', 'high watering', 'high water', 'مرتفع', 'عالي', 'عالية'],
-        )) {
-      reasons.add('متطلبات الري لا تتوافق مع مستوى الري المفضل لحديقتك');
-    }
+    // Check watering compatibility using exact category matching.
+if (_hasKnownValue(plant.wateringRequirement) &&
+    !_sameCategory(
+      plant.wateringRequirement,
+      garden.wateringLevel.name,
+      low: const ['low', 'low watering', 'low water', 'منخفض', 'قليل', 'قليلة'],
+      medium: const ['medium', 'moderate', 'moderate watering', 'متوسط', 'متوسطة'],
+      high: const ['high', 'high watering', 'high water', 'مرتفع', 'عالي', 'عالية'],
+    )) {
+  reasons.add('متطلبات الري لا تتوافق مع مستوى الري المفضل لحديقتك');
+}
 
     // Use the same facade-to-sunlight mapping as RecommendationEngine.
     // Do not treat missing plant light information as a confirmed mismatch.

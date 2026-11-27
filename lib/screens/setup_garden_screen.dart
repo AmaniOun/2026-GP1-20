@@ -240,7 +240,7 @@ class _SetupGardenScreenState
       lengthMeters: length,
       widthMeters: width,
       careLevel: selectedCareLevel!,
-      wateringLevel: selectedWateringLevel,
+      wateringLevel: selectedWateringLevel!,
 
       // بيانات الموقع
       latitude: latitude,

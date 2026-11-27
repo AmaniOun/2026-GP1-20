@@ -492,7 +492,7 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
             const SizedBox(height: 10),
             Row(children: [
               _gardenDatum(Icons.water_drop_outlined, 'مستوى الري',
-                  g.wateringLevel?.arabicLabel ?? 'غير محدد'),
+                  g.wateringLevel.arabicLabel),
               const SizedBox(width: 10),
               _gardenDatum(Icons.eco_outlined, 'مستوى العناية',
                   g.careLevel.arabicLabel),

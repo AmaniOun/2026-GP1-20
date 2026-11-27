@@ -87,8 +87,7 @@ class GardenProfile {
   final double lengthMeters;
   final double widthMeters;
   final CareLevel careLevel;
-
-  final WateringLevel? wateringLevel;
+  final WateringLevel wateringLevel;
 
   // ========================================
   // بيانات الموقع
@@ -121,7 +120,7 @@ class GardenProfile {
     required this.widthMeters,
     required this.careLevel,
     required this.updatedAt,
-    this.wateringLevel,
+    required this.wateringLevel,
     this.latitude,
     this.longitude,
     this.city,
@@ -199,7 +198,7 @@ class GardenProfile {
           careLevel.name,
 
       'wateringLevel':
-          wateringLevel?.name,
+          wateringLevel.name,
 
       // بيانات الموقع
       'latitude':
@@ -257,15 +256,11 @@ class GardenProfile {
             map['careLevel'],
       ),
 
-      // الحدائق القديمة ما فيها هذا الحقل، فيكون null.
+      
       wateringLevel:
-          WateringLevel.values
-              .where(
-                (e) =>
-                    e.name ==
-                    map['wateringLevel'],
-              )
-              .firstOrNull,
+    WateringLevel.values.firstWhere(
+      (e) => e.name == map['wateringLevel'],
+    ),
 
       // بيانات الموقع
       latitude:

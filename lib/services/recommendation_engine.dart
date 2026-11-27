@@ -7,15 +7,12 @@ import 'plant_service.dart';
 class PlantRecommendation {
   final Plant plant;
   final double score;
-  // Metadata for the UI only; it does NOT affect the score.
   final List<String> matchedFactors;
-  final List<String> partiallyMatchedFactors;
 
   const PlantRecommendation({
     required this.plant,
     required this.score,
     this.matchedFactors = const [],
-    this.partiallyMatchedFactors = const [],
   });
 }
 
@@ -33,52 +30,55 @@ class RecommendationEngine {
   RecommendationEngine._();
 
   static final RecommendationEngine instance =
-  RecommendationEngine._();
+      RecommendationEngine._();
 
   Future<RecommendationResults> getRecommendations() async {
     // Read the saved garden profile.
     final GardenProfile? garden =
-    await GardenService.instance.getGarden();
+        await GardenService.instance.getGarden();
 
     if (garden == null) {
       throw Exception('لم يتم العثور على بيانات الحديقة.');
     }
 
-    // Load plants from Firestore through the existing service.
+    // Load plants from Firestore through PlantService.
     final List<Plant> plants =
-    await PlantService.instance.loadPlants();
+        await PlantService.instance.loadPlants();
 
     final double availableSpace =
-    garden.lengthMeters < garden.widthMeters
-        ? garden.lengthMeters
-        : garden.widthMeters;
+        garden.lengthMeters < garden.widthMeters
+            ? garden.lengthMeters
+            : garden.widthMeters;
 
     final List<PlantRecommendation> tolerant = [];
     final List<PlantRecommendation> sensitive = [];
 
     for (final Plant plant in plants) {
       // Exclude plants that exceed the available garden dimension.
-      final double? spread = _parseNumber(plant.matureSpread);
+      final double? spread =
+          _parseNumber(plant.matureSpread);
 
       if (spread != null && spread > availableSpace) {
         continue;
       }
 
-      final double wateringCompatibility =
-      _wateringCompatibility(plant, garden);
+      // Evaluate the three compatibility factors.
+      final bool wateringCompatibility =
+          _wateringCompatibility(plant, garden);
 
-      final double sunlightCompatibility =
-      _sunlightCompatibility(plant, garden);
+      final bool sunlightCompatibility =
+          _sunlightCompatibility(plant, garden);
 
-      final double careCompatibility =
-      _careCompatibility(plant, garden);
+      final bool careCompatibility =
+          _careCompatibility(plant, garden);
 
-      // Keep the agreed formula: all three factors have equal weight.
+      // All three factors have equal weight.
       final double score = (
-          (wateringCompatibility +
-              sunlightCompatibility +
-              careCompatibility) /
-              3
+        (
+          (wateringCompatibility ? 1 : 0) +
+          (sunlightCompatibility ? 1 : 0) +
+          (careCompatibility ? 1 : 0)
+        ) / 3
       ) * 100;
 
       // Exclude plants with zero suitability.
@@ -86,30 +86,22 @@ class RecommendationEngine {
         continue;
       }
 
-      // Describe the same factor results used above without recalculating
-      // or changing the existing score, thresholds or weights.
+      // Record matching factors for the recommendation explanation.
       final matchedFactors = <String>[
-        if (wateringCompatibility == 1) 'الري',
-        if (sunlightCompatibility == 1) 'الإضاءة',
-        if (careCompatibility == 1) 'العناية',
-      ];
-      final partiallyMatchedFactors = <String>[
-        // Unspecified garden watering preference produces 0.5 in the
-        // existing engine, so it must NOT be called a complete match.
-        if (wateringCompatibility > 0 && wateringCompatibility < 1) 'الري',
-        if (sunlightCompatibility > 0 && sunlightCompatibility < 1) 'الإضاءة',
-        if (careCompatibility > 0 && careCompatibility < 1) 'العناية',
+        if (wateringCompatibility) 'الري',
+        if (sunlightCompatibility) 'الإضاءة',
+        if (careCompatibility) 'العناية',
       ];
 
       final recommendation = PlantRecommendation(
         plant: plant,
         score: score,
         matchedFactors: matchedFactors,
-        partiallyMatchedFactors: partiallyMatchedFactors,
       );
 
+      // Group recommendations by climate tolerance.
       final String climateClass =
-      _normalize(plant.climateToleranceClass ?? '');
+          _normalize(plant.climateToleranceClass ?? '');
 
       if (_isTolerant(climateClass)) {
         tolerant.add(recommendation);
@@ -118,9 +110,14 @@ class RecommendationEngine {
       }
     }
 
-    // Highest score first in both sections.
-    tolerant.sort((a, b) => b.score.compareTo(a.score));
-    sensitive.sort((a, b) => b.score.compareTo(a.score));
+    // Highest score first in both groups.
+    tolerant.sort(
+      (a, b) => b.score.compareTo(a.score),
+    );
+
+    sensitive.sort(
+      (a, b) => b.score.compareTo(a.score),
+    );
 
     return RecommendationResults(
       tolerantPlants: tolerant,
@@ -128,25 +125,19 @@ class RecommendationEngine {
     );
   }
 
-  double _wateringCompatibility(
-      Plant plant,
-      GardenProfile garden,
-      ) {
-    // Keep the watering factor in the formula even when the
-    // garden's optional watering preference has not been specified.
-    if (garden.wateringLevel == null) {
-      return 0.5;
-    }
-
+  bool _wateringCompatibility(
+    Plant plant,
+    GardenProfile garden,
+  ) {
     final String plantWatering =
-    _normalize(plant.wateringRequirement);
+        _normalize(plant.wateringRequirement);
 
     final String gardenWatering =
-    _normalize(garden.wateringLevel!.name);
+        _normalize(garden.wateringLevel.name);
 
-    if (plantWatering.isEmpty) return 0;
+    if (plantWatering.isEmpty) return false;
 
-    if (_sameCategory(
+    return _sameCategory(
       plantWatering,
       gardenWatering,
       low: const [
@@ -172,21 +163,17 @@ class RecommendationEngine {
         'عالي',
         'عالية',
       ],
-    )) {
-      return 1;
-    }
-
-    return 0;
+    );
   }
 
-  double _sunlightCompatibility(
-      Plant plant,
-      GardenProfile garden,
-      ) {
+  bool _sunlightCompatibility(
+    Plant plant,
+    GardenProfile garden,
+  ) {
     final String plantLight =
-    _normalize(plant.lightRequirement);
+        _normalize(plant.lightRequirement);
 
-    if (plantLight.isEmpty) return 0;
+    if (plantLight.isEmpty) return false;
 
     final String expectedLight;
 
@@ -194,30 +181,36 @@ class RecommendationEngine {
       case FacadeDirection.north:
         expectedLight = 'shade';
         break;
+
       case FacadeDirection.south:
       case FacadeDirection.west:
         expectedLight = 'fullsun';
         break;
+
       case FacadeDirection.east:
         expectedLight = 'partialsun';
         break;
     }
 
-    final String normalizedLight = _normalizeLight(plantLight);
+    final String normalizedLight =
+        _normalizeLight(plantLight);
 
-    return normalizedLight == expectedLight ? 1 : 0;
+    return normalizedLight == expectedLight;
   }
 
-  double _careCompatibility(
-      Plant plant,
-      GardenProfile garden,
-      ) {
-    final String plantCare = _normalize(plant.careLevel);
-    final String gardenCare = _normalize(garden.careLevel.name);
+  bool _careCompatibility(
+    Plant plant,
+    GardenProfile garden,
+  ) {
+    final String plantCare =
+        _normalize(plant.careLevel);
 
-    if (plantCare.isEmpty) return 0;
+    final String gardenCare =
+        _normalize(garden.careLevel.name);
 
-    if (_sameCategory(
+    if (plantCare.isEmpty) return false;
+
+    return _sameCategory(
       plantCare,
       gardenCare,
       low: const [
@@ -240,24 +233,29 @@ class RecommendationEngine {
         'مرتفع',
         'عالية',
       ],
-    )) {
-      return 1;
-    }
-
-    return 0;
+    );
   }
 
   bool _sameCategory(
-      String first,
-      String second, {
-        required List<String> low,
-        required List<String> medium,
-        required List<String> high,
-      }) {
+    String first,
+    String second, {
+    required List<String> low,
+    required List<String> medium,
+    required List<String> high,
+  }) {
     String? category(String value) {
-      if (low.any((v) => _normalize(v) == value)) return 'low';
-      if (medium.any((v) => _normalize(v) == value)) return 'medium';
-      if (high.any((v) => _normalize(v) == value)) return 'high';
+      if (low.any((v) => _normalize(v) == value)) {
+        return 'low';
+      }
+
+      if (medium.any((v) => _normalize(v) == value)) {
+        return 'medium';
+      }
+
+      if (high.any((v) => _normalize(v) == value)) {
+        return 'high';
+      }
+
       return null;
     }
 
@@ -273,7 +271,6 @@ class RecommendationEngine {
 
     if ([
       'shade',
-      'fullshade',
       'fullshade',
       'ظل',
       'ظليل',
@@ -333,7 +330,6 @@ class RecommendationEngine {
       return null;
     }
 
-    // Supports values such as "2.5 m", "2.5m", or "2.5".
     final match = RegExp(r'-?\d+(\.\d+)?')
         .firstMatch(value.trim());
 

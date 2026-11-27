@@ -1,3 +1,4 @@
+
 // Widgets used to show a plant image and its saved-to-My-Plants state.
 import '../widgets/ruwa_saved_badge.dart';
 import '../widgets/ruwa_plant_image.dart';
@@ -195,10 +196,12 @@ class _RecommendedPlantsScreenState
                       ),
                     );
                   }
+
                   // Insert the header spacing and climate-tolerance filter tabs.
                   if (index == 1) return const SizedBox(height: 12);
                   if (index == 2) return _filterTabs();
                   if (index == 3) return const SizedBox(height: 20);
+
                   // Show a filter-specific message when no matching plants remain.
                   if (items.isEmpty) {
                     return _buildSectionEmpty(
@@ -209,14 +212,14 @@ class _RecommendedPlantsScreenState
                               : 'لا توجد نباتات موصى بها لك حاليًا.',
                     );
                   }
+
                   // Convert the list index to a recommendation after header slots.
                   final item = items[index - 4];
+
                   return _buildPlantCard(
                     item.recommendation.plant,
                     item.recommendation.score,
                     matchedFactors: item.recommendation.matchedFactors,
-                    partiallyMatchedFactors:
-                        item.recommendation.partiallyMatchedFactors,
                     isSensitive: item.sensitive,
                   );
                 },
@@ -235,10 +238,12 @@ class _RecommendedPlantsScreenState
       ('tolerant', 'مقاوم'),
       ('sensitive', 'حساس'),
     ];
+
     return Row(
       children: options.map((option) {
         // Highlight the active filter; only the displayed items change.
         final selected = _filter == option.$1;
+
         return Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -251,13 +256,20 @@ class _RecommendedPlantsScreenState
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: selected ? greenColor : backgroundColor,
-                  border: Border.all(color: selected ? greenColor : borderColor, width: 1.2),
+                  border: Border.all(
+                    color: selected ? greenColor : borderColor,
+                    width: 1.2,
+                  ),
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: Text(option.$2, style: GoogleFonts.cairo(
-                  color: selected ? Colors.white : darkGreenColor,
-                  fontSize: 14, fontWeight: FontWeight.w700,
-                )),
+                child: Text(
+                  option.$2,
+                  style: GoogleFonts.cairo(
+                    color: selected ? Colors.white : darkGreenColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ),
@@ -270,21 +282,25 @@ class _RecommendedPlantsScreenState
   Widget _selectedFilterCount(RecommendationResults results) {
     final tolerantCount = results.tolerantPlants.length;
     final sensitiveCount = results.sensitivePlants.length;
+
     final count = switch (_filter) {
       'tolerant' => tolerantCount,
       'sensitive' => sensitiveCount,
       _ => tolerantCount + sensitiveCount,
     };
+
     // Select a localized count label matching the active climate group.
     final title = switch (_filter) {
       'tolerant' => 'عدد النباتات المقاومة',
       'sensitive' => 'عدد النباتات الحساسة',
       _ => 'إجمالي النباتات الموصى بها لك',
     };
+
     return Row(
       children: [
         Expanded(
-          child: Text(title,
+          child: Text(
+            title,
             style: GoogleFonts.cairo(
               color: darkGreenColor,
               fontSize: 14,
@@ -293,12 +309,16 @@ class _RecommendedPlantsScreenState
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 6,
+          ),
           decoration: BoxDecoration(
             color: lightSageColor,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Text('$count',
+          child: Text(
+            '$count',
             style: GoogleFonts.cairo(
               color: greenColor,
               fontWeight: FontWeight.w800,
@@ -308,7 +328,6 @@ class _RecommendedPlantsScreenState
       ],
     );
   }
-
 
   // Delegate image retrieval and caching to the existing plant image widget.
   Widget _cachedPlantPhoto(String scientificName) =>
@@ -417,32 +436,31 @@ class _RecommendedPlantsScreenState
     double score, {
     required bool isSensitive,
     required List<String> matchedFactors,
-    required List<String> partiallyMatchedFactors,
   }) {
     // The engine already calculates each factor; this screen only classifies
     // the labels for display and never changes the engine score or weights.
-    final matchedOrPartiallyMatched = <String>{
-      ...matchedFactors,
-      ...partiallyMatchedFactors,
-    };
+    final matched = matchedFactors.toSet();
+
     // Distinguish missing plant attributes from confirmed incompatibility.
     final factorsWithoutPlantData = <String>{
       if (plant.wateringRequirement.trim().isEmpty) 'الري',
       if (plant.lightRequirement.trim().isEmpty) 'الإضاءة',
       if (plant.careLevel.trim().isEmpty) 'العناية',
     };
-    // A non-matching factor is neither matched nor partially matched,
-    // and its plant-side requirement is present.
+
+    // A non-matching factor has a known plant requirement
+    // that does not match the garden preferences.
     final unmatchedFactors = <String>[
       for (final factor in const ['الري', 'الإضاءة', 'العناية'])
-        if (!matchedOrPartiallyMatched.contains(factor) &&
+        if (!matched.contains(factor) &&
             !factorsWithoutPlantData.contains(factor))
           factor,
     ];
+
     // Explain factors that could not be assessed due to missing plant data.
     final unavailableFactors = <String>[
       for (final factor in const ['الري', 'الإضاءة', 'العناية'])
-        if (!matchedOrPartiallyMatched.contains(factor) &&
+        if (!matched.contains(factor) &&
             factorsWithoutPlantData.contains(factor))
           factor,
     ];
@@ -451,6 +469,7 @@ class _RecommendedPlantsScreenState
     final statusColor = isSensitive
         ? const Color(0xFF98691F)
         : greenColor;
+
     final statusBackground = isSensitive
         ? const Color(0xFFFFF0D7)
         : const Color(0xFFE1F2DE);
@@ -462,7 +481,10 @@ class _RecommendedPlantsScreenState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: borderColor, width: 1.2),
+        border: Border.all(
+          color: borderColor,
+          width: 1.2,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -488,6 +510,7 @@ class _RecommendedPlantsScreenState
                         height: 1.4,
                       ),
                     ),
+
                     // Scientific names are shown only when available.
                     if (plant.scientificName.trim().isNotEmpty) ...[
                       const SizedBox(height: 3),
@@ -504,18 +527,24 @@ class _RecommendedPlantsScreenState
                         ),
                       ),
                     ],
+
                     const SizedBox(height: 8),
+
                     Align(
                       alignment: AlignmentDirectional.centerStart,
                       // Indicate whether the plant already belongs to My Plants.
                       child: RuwaSavedBadge(plantId: plant.id),
                     ),
+
                     const SizedBox(height: 12),
+
                     Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 11, vertical: 5),
+                          horizontal: 11,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: statusBackground,
                           borderRadius: BorderRadius.circular(30),
@@ -523,10 +552,14 @@ class _RecommendedPlantsScreenState
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.thermostat_outlined,
-                                size: 17, color: statusColor),
+                            Icon(
+                              Icons.thermostat_outlined,
+                              size: 17,
+                              color: statusColor,
+                            ),
                             const SizedBox(width: 5),
-                            Text(isSensitive ? 'حساس' : 'مقاوم',
+                            Text(
+                              isSensitive ? 'حساس' : 'مقاوم',
                               style: GoogleFonts.cairo(
                                 color: statusColor,
                                 fontSize: 12.5,
@@ -542,7 +575,9 @@ class _RecommendedPlantsScreenState
               ),
             ],
           ),
+
           const SizedBox(height: 13),
+
           // Display the plant's own care, watering, and sunlight requirements.
           Wrap(
             spacing: 8,
@@ -554,21 +589,34 @@ class _RecommendedPlantsScreenState
               ),
               _buildInfoChip(
                 icon: Icons.water_drop_outlined,
-                label: PlantDisplayFormatter.water(plant.wateringRequirement),
+                label: PlantDisplayFormatter.water(
+                  plant.wateringRequirement,
+                ),
               ),
               _buildInfoChip(
                 icon: Icons.wb_sunny_outlined,
-                label: PlantDisplayFormatter.light(plant.lightRequirement),
+                label: PlantDisplayFormatter.light(
+                  plant.lightRequirement,
+                ),
               ),
             ],
           ),
+
           const SizedBox(height: 15),
-          const Divider(color: borderColor, thickness: 1, height: 1),
+
+          const Divider(
+            color: borderColor,
+            thickness: 1,
+            height: 1,
+          ),
+
           const SizedBox(height: 14),
+
           Row(
             children: [
               // Display the suitability percentage calculated by the engine.
-              Text('نسبة التوافق',
+              Text(
+                'نسبة التوافق',
                 style: GoogleFonts.cairo(
                   color: secondaryTextColor,
                   fontSize: 13.5,
@@ -589,7 +637,8 @@ class _RecommendedPlantsScreenState
                 ),
               ),
               const SizedBox(width: 11),
-              Text('${score.toStringAsFixed(0)}%',
+              Text(
+                '${score.toStringAsFixed(0)}%',
                 textDirection: TextDirection.ltr,
                 style: GoogleFonts.cairo(
                   color: statusColor,
@@ -599,52 +648,43 @@ class _RecommendedPlantsScreenState
               ),
             ],
           ),
+
           const SizedBox(height: 12),
+
           // List factors that matched the garden requirements completely.
-          Text('العوامل المتوافقة',
+          Text(
+            'العوامل المتوافقة',
             style: GoogleFonts.cairo(
               color: darkGreenColor,
               fontSize: 13.5,
               fontWeight: FontWeight.w800,
             ),
           ),
+
           const SizedBox(height: 8),
-          // A recommendation can have partial matches without full matches.
+
           if (matchedFactors.isEmpty)
-            Text('لا يوجد توافق كامل',
-              style: GoogleFonts.cairo(color: secondaryTextColor, fontSize: 12.5),
+            Text(
+              'لا يوجد توافق كامل',
+              style: GoogleFonts.cairo(
+                color: secondaryTextColor,
+                fontSize: 12.5,
+              ),
             )
           else
             Wrap(
               spacing: 7,
               runSpacing: 7,
-              children: matchedFactors.map((factor) =>
-                _factorChip(factor),
+              children: matchedFactors.map(
+                (factor) => _factorChip(factor),
               ).toList(),
             ),
-          // Present partial matches separately to avoid implying a full match.
-          if (partiallyMatchedFactors.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text('توافق جزئي في',
-              style: GoogleFonts.cairo(
-                color: secondaryTextColor,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 7),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: partiallyMatchedFactors.map((factor) =>
-                _factorChip(factor, partial: true),
-              ).toList(),
-            ),
-          ],
+
           // Explain why a recommendation did not receive a perfect score.
           if (unmatchedFactors.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text('العوامل غير المتوافقة',
+            Text(
+              'العوامل غير المتوافقة',
               style: GoogleFonts.cairo(
                 color: const Color(0xFF8D443A),
                 fontSize: 13.5,
@@ -655,15 +695,20 @@ class _RecommendedPlantsScreenState
             Wrap(
               spacing: 7,
               runSpacing: 7,
-              children: unmatchedFactors.map((factor) =>
-                _factorChip(factor, unmatched: true),
+              children: unmatchedFactors.map(
+                (factor) => _factorChip(
+                  factor,
+                  unmatched: true,
+                ),
               ).toList(),
             ),
           ],
+
           // Avoid treating unavailable source data as an explicit mismatch.
           if (unavailableFactors.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text('عوامل لا تتوفر بياناتها',
+            Text(
+              'عوامل لا تتوفر بياناتها',
               style: GoogleFonts.cairo(
                 color: secondaryTextColor,
                 fontSize: 12.5,
@@ -674,12 +719,17 @@ class _RecommendedPlantsScreenState
             Wrap(
               spacing: 7,
               runSpacing: 7,
-              children: unavailableFactors.map((factor) =>
-                _factorChip(factor, unavailable: true),
+              children: unavailableFactors.map(
+                (factor) => _factorChip(
+                  factor,
+                  unavailable: true,
+                ),
               ).toList(),
             ),
           ],
+
           const SizedBox(height: 16),
+
           // Open the existing plant-details screen for full plant information.
           SizedBox(
             height: 50,
@@ -699,7 +749,8 @@ class _RecommendedPlantsScreenState
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: Text('عرض التفاصيل',
+              child: Text(
+                'عرض التفاصيل',
                 style: GoogleFonts.cairo(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
@@ -718,7 +769,10 @@ class _RecommendedPlantsScreenState
     required String label,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 7,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFFF0F5ED),
         borderRadius: BorderRadius.circular(18),
@@ -727,9 +781,14 @@ class _RecommendedPlantsScreenState
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 17, color: greenColor),
+          Icon(
+            icon,
+            size: 17,
+            color: greenColor,
+          ),
           const SizedBox(width: 5),
-          Text(label,
+          Text(
+            label,
             style: GoogleFonts.cairo(
               color: darkGreenColor,
               fontSize: 12.5,
@@ -745,54 +804,62 @@ class _RecommendedPlantsScreenState
   IconData _factorIcon(String factor) {
     // Handle the Arabic labels used by Ruwa and optional English variants.
     final normalized = factor.trim().toLowerCase();
-    if (normalized.contains('ري') || normalized.contains('ماء') ||
-        normalized.contains('سقي') || normalized.contains('water')) {
+
+    if (normalized.contains('ري') ||
+        normalized.contains('ماء') ||
+        normalized.contains('سقي') ||
+        normalized.contains('water')) {
       return Icons.water_drop_outlined;
     }
-    if (normalized.contains('إضاءة') || normalized.contains('اضاءة') ||
-        normalized.contains('شمس') || normalized.contains('ضوء') ||
-        normalized.contains('light') || normalized.contains('sun')) {
+
+    if (normalized.contains('إضاءة') ||
+        normalized.contains('اضاءة') ||
+        normalized.contains('شمس') ||
+        normalized.contains('ضوء') ||
+        normalized.contains('light') ||
+        normalized.contains('sun')) {
       return Icons.wb_sunny_outlined;
     }
-    if (normalized.contains('عناية') || normalized.contains('care') ||
+
+    if (normalized.contains('عناية') ||
+        normalized.contains('care') ||
         normalized.contains('صيانة')) {
       return Icons.spa_outlined;
     }
+
     return Icons.check_circle_outline_rounded;
   }
 
   // Render a compatibility factor using visual styles for its outcome.
   Widget _factorChip(
     String factor, {
-    bool partial = false,
     bool unmatched = false,
     bool unavailable = false,
   }) {
-    // Select colors for unavailable, incompatible, partial, or full matches.
+    // Select colors for unavailable, incompatible, or matching factors.
     final Color accent = unavailable
         ? secondaryTextColor
         : unmatched
             ? const Color(0xFF9E493F)
-            : partial
-                ? const Color(0xFF8D702B)
-                : greenColor;
+            : greenColor;
+
     final Color chipBackground = unavailable
         ? const Color(0xFFF3F3F1)
         : unmatched
             ? const Color(0xFFFFF0ED)
-            : partial
-                ? const Color(0xFFFFF7E8)
-                : const Color(0xFFF0F5ED);
+            : const Color(0xFFF0F5ED);
+
     final Color chipBorder = unavailable
         ? const Color(0xFFE2E2DE)
         : unmatched
             ? const Color(0xFFF0D4CE)
-            : partial
-                ? const Color(0xFFEADDBB)
-                : borderColor;
+            : borderColor;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 7,
+      ),
       decoration: BoxDecoration(
         color: chipBackground,
         borderRadius: BorderRadius.circular(18),
@@ -801,13 +868,18 @@ class _RecommendedPlantsScreenState
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(_factorIcon(factor), size: 17, color: accent),
+          Icon(
+            _factorIcon(factor),
+            size: 17,
+            color: accent,
+          ),
           const SizedBox(width: 5),
-          Text(factor,
+          Text(
+            factor,
             style: GoogleFonts.cairo(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
-              color: unavailable || unmatched || partial
+              color: unavailable || unmatched
                   ? accent
                   : darkGreenColor,
             ),
