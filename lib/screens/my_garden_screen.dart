@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/garden_profile.dart';
 import '../services/garden_service.dart';
 import '../services/location_service.dart';
-import '../services/geoapify_service.dart';
 import '../services/weather_service.dart';
 import 'my_plants_screen.dart';
 import 'setup_garden_screen.dart';
@@ -105,8 +104,9 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
   // ============================================================
   // فتح صفحة إعداد / تعديل الحديقة
   // ============================================================
+ 
   Future<void> _openSetupOrEdit() async {
-    // تعديل حديقة موجودة: لا نعيد التحقق من الموقع.
+    // Edit an existing garden without verifying location again.
     if (garden != null) {
       final result = await Navigator.push<GardenProfile>(
         context,
@@ -116,52 +116,61 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
           ),
         ),
       );
+
       if (result != null && mounted) {
         setState(() => garden = result);
         _loadWeather(result);
         setState(_loadPreviews);
       }
+
       return;
     }
-    // منع الضغط المتكرر أثناء التحقق من الموقع.
+
+    // Prevent repeated requests during location verification.
     if (isCheckingLocation) return;
+
     setState(() => isCheckingLocation = true);
+
     try {
-      // 1) الحصول على موقع الجهاز.
-      final position = await LocationService.getCurrentLocation();
+      // 1. Get the device's current location.
+      final position =
+          await LocationService.getCurrentLocation();
+
       if (!mounted) return;
-      // 2) إرسال Latitude + Longitude إلى Geoapify.
+
+      // 2. Retrieve location details through LocationService.
       Map<String, dynamic> locationData;
+
       try {
-        locationData = await GeoapifyService.getLocationDetails(
-          latitude: position.latitude,
-          longitude: position.longitude,
-        );
+        locationData =
+            await LocationService.getLocationDetails(position);
       } catch (_) {
         if (!mounted) return;
+
         _showLocationMessage(
           'تعذر التحقق من موقعك حالياً. '
           'يرجى التأكد من اتصال الإنترنت والمحاولة مرة أخرى.',
         );
+
         return;
       }
+
       if (!mounted) return;
-      // 3) التحقق من أن الموقع ضمن منطقة الرياض ومحافظاتها.
-      final city = (locationData['city'] ?? '').toString();
-      final state = (locationData['state'] ?? '').toString();
-      final formatted = (locationData['formatted'] ?? '').toString();
-      final locationText = '$city $state $formatted'.toLowerCase();
+
+      // 3. Verify whether the location is supported.
       final isWithinRiyadh =
-          locationText.contains('riyadh') ||
-          locationText.contains('الرياض');
+          LocationService.isWithinSupportedArea(locationData);
+
       if (!isWithinRiyadh) {
         _showLocationMessage(
           'رُوى متاح حالياً للحدائق الموجودة '
           'في منطقة الرياض ومحافظاتها فقط.',
         );
+
         return;
       }
-      // 4) الموقع صحيح: فتح إعداد الحديقة وتمرير بيانات الموقع.
+
+      // 4. Open garden setup with the verified location.
       final result = await Navigator.push<GardenProfile>(
         context,
         MaterialPageRoute(
@@ -171,11 +180,13 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
             city: locationData['city']?.toString(),
             state: locationData['state']?.toString(),
             country: locationData['country']?.toString(),
-            formattedAddress: locationData['formatted']?.toString(),
+            formattedAddress:
+                locationData['formatted']?.toString(),
             locationVerified: true,
           ),
         ),
       );
+
       if (result != null && mounted) {
         setState(() => garden = result);
         _loadWeather(result);
@@ -183,8 +194,10 @@ class _MyGardenScreenState extends State<MyGardenScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+
       var message = e.toString();
       message = message.replaceFirst('Exception: ', '');
+
       _showLocationMessage(message);
     } finally {
       if (mounted) {
