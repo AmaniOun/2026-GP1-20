@@ -41,6 +41,5 @@ class GardenService {
   Future<void> updateGarden(GardenProfile garden) async {
     await saveGarden(garden);
   }
-
-  void clear() {  }
+  
 }
