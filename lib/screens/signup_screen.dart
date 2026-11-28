@@ -621,18 +621,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       },
                     ),
 
-                    if (confirmError) ...[
-                      const SizedBox(height: 7),
-                      Text(
-                        'كلمتا المرور غير متطابقتين',
-                        style: _style(
-                          12,
-                          color: _red,
-                          weight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-
                     const SizedBox(height: 25),
 
                     // زر إنشاء الحساب
